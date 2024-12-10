@@ -28,7 +28,9 @@ class Pipe:
     #Below is a method to initialize the pipes on the screen
 
     def __init__(self, x):
+        #The variable x here defines where on the x axis our pipe is
         self.x = x
+        #The height of our pipes is determined randomly using the method pipe_height()
         self.height = 0
 
         self.top = 0
@@ -47,7 +49,7 @@ class Pipe:
     def pipe_height(self):
 
         self.height = random.randrange(50,450)
-        #Here we are defining exactly where the top pipe should be on the screen
+        #Here we are defining exactly where the top pipe should start to be drawn
         self.top = self.height - self.TOP_PIPE.get_height()
         #Here we are defining where the bottom pipe should be on our screen
         self.bottom = self.height + self.PIPE_GAP
@@ -61,24 +63,43 @@ class Pipe:
         win.blit(self.TOP_PIPE,(self.x,self.top))
         win.blit(self.BOTTOM_PIPE,(self.x,self.bottom))
 
-def draw_window(win,pipe):
-    #Draw the background first
-    win.blit(BG_IMG, (0,0))
-    #draw the pipes on top of the background
-    pipe.draw(win)
+def draw_window(win, pipes):
+    win.blit(BG_IMG, (0, 0))  # Draw background first
+    for pipe in pipes:  # Draw all pipes
+        pipe.draw(win)
     pygame.display.update()
+
     
 def main():
-    pipe = Pipe(250)
-    win = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
+    pygame.init()
+    win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    pipes = [Pipe(600)]  # Initialize with one pipe
+    clock = pygame.time.Clock()  # Control the frame rate
     run = True
+
     while run:
+        clock.tick(30)  # Set frame rate to 30 FPS
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-        draw_window(win,pipe)
+
+        # Move pipes
+        for pipe in pipes:
+            pipe.move_pipe()
+
+        # Add a new pipe if the last one moves left enough
+        if pipes[-1].x < 300:
+            pipes.append(Pipe(600))
+
+        # Remove pipes that go off-screen
+        pipes = [pipe for pipe in pipes if pipe.x + pipe.TOP_PIPE.get_width() > 0]
+
+        # Draw everything
+        draw_window(win, pipes)
+
     pygame.quit()
     quit()
+
 
 #Calling Main
 main()
