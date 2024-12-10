@@ -11,7 +11,6 @@ class pipe:
     def __init__(self, x):
         self.x = x
         self.height = 0
-        self.gap = 100
 
         self.top = 0
         self.bottom = 0
@@ -24,3 +23,12 @@ class pipe:
         #This is a class variable that helps us track collisions with pipes
         self.passed = False
         self.set_height()
+
+    #Below is a method that randomly assigns the heights of our pipes
+    def pipe_height(self):
+
+        self.height = random.randrange(50,450)
+        #Here we are defining exactly where the top pipe should be on the screen
+        self.top = self.height - self.TOP_PIPE.get_height()
+        #Here we are defining where the bottom pipe should be on our screen
+        self.bottom = self.height + self.gap
