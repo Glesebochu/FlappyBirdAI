@@ -1,4 +1,23 @@
 import pygame
+import random
+import os
+
+#Constants to define the window we will be working with.
+#Ideally the width should be the same as the background for the flappy bird we will use.
+WINDOW_WIDTH = 500
+WINDOW_HEIGHT = 800
+
+#Define the bird images as a list 
+BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird1.png"))),
+            pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird2.png"))),
+            pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird3.png")))]
+
+#Define the pipe image using the os library and pygame to load those images
+PIPE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","pipe.png")))
+
+#Define the background and base images
+BASE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","base.png")))
+BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png")))
 class pipe:
     #Constant to keep track of the gap between our pipes
     PIPE_GAP = 200
