@@ -62,12 +62,14 @@ class Pipe:
         win.blit(self.BOTTOM_PIPE,(self.x,self.bottom))
 
 def draw_window(win,pipe):
-    pipe.draw(win)
+    #Draw the background first
     win.blit(BG_IMG, (0,0))
+    #draw the pipes on top of the background
+    pipe.draw(win)
     pygame.display.update()
     
 def main():
-    pipe = Pipe(200)
+    pipe = Pipe(250)
     win = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
     run = True
     while run:
