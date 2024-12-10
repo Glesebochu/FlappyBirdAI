@@ -31,4 +31,15 @@ class pipe:
         #Here we are defining exactly where the top pipe should be on the screen
         self.top = self.height - self.TOP_PIPE.get_height()
         #Here we are defining where the bottom pipe should be on our screen
-        self.bottom = self.height + self.gap
+        self.bottom = self.height + self.PIPE_GAP
+    
+    #Below is the method that we use to actually move our pipes based on the
+    #frame velocity
+    def move_pipe(self):
+        self.x -= self.PIPE_VEL
+
+    def draw(self,win):
+        win.blit(self.TOP_PIPE,(self.x,self.top))
+        win.blit(self.BOTTOM_PIPE,(self.x,self.bottom))
+
+    
