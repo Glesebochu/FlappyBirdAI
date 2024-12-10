@@ -18,7 +18,7 @@ PIPE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","pipe.
 #Define the background and base images
 BASE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","base.png")))
 BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png")))
-class pipe:
+class Pipe:
     #Constant to keep track of the gap between our pipes
     PIPE_GAP = 200
     #The birds we have are stationary only the pipes move backwards below
@@ -41,7 +41,7 @@ class pipe:
 
         #This is a class variable that helps us track collisions with pipes
         self.passed = False
-        self.set_height()
+        self.pipe_height()
 
     #Below is a method that randomly assigns the heights of our pipes
     def pipe_height(self):
@@ -61,4 +61,22 @@ class pipe:
         win.blit(self.TOP_PIPE,(self.x,self.top))
         win.blit(self.BOTTOM_PIPE,(self.x,self.bottom))
 
+def draw_window(win,pipe):
+    pipe.draw(win)
+    win.blit(BG_IMG, (0,0))
+    pygame.display.update()
     
+def main():
+    pipe = Pipe(200)
+    win = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
+    run = True
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+        draw_window(win,pipe)
+    pygame.quit()
+    quit()
+
+#Calling Main
+main()
