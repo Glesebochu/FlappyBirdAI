@@ -18,6 +18,75 @@ PIPE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","pipe.
 #Define the background and base images
 BASE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","base.png")))
 BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png")))
+
+class Bird:
+    # Constants for bird animation and physics
+    MAX_ROTATION = 25
+    ROTATION_VELOCITY = 20
+    ANIMATION_TIME = 5
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.tilt = 0
+        self.tick_count = 0
+        self.velocity = 0
+        self.height = self.y
+        self.img_count = 0
+        self.img = BIRD_IMGS[0]
+
+    def jump(self):
+        self.velocity = -10.5
+        self.tick_count = 0
+        self.height = self.y
+
+    def move(self):
+        self.tick_count += 1
+        displacement = self.velocity * self.tick_count + 1.5 * self.tick_count**2
+
+        if displacement >= 16:
+            displacement = 16
+        if displacement < 0:
+            displacement -= 2
+
+        self.y = self.y + displacement
+
+        if displacement < 0 or self.y < self.height + 50:
+            if self.tilt < self.MAX_ROTATION:
+                self.tilt = self.MAX_ROTATION
+        else:
+            if self.tilt > -90:
+                self.tilt -= self.ROTATION_VELOCITY
+
+    def draw(self, win):
+        self.img_count += 1
+
+        # Cycle through images for animation
+        if self.img_count < self.ANIMATION_TIME:
+            self.img = BIRD_IMGS[0]
+        elif self.img_count < self.ANIMATION_TIME * 2:
+            self.img = BIRD_IMGS[1]
+        elif self.img_count < self.ANIMATION_TIME * 3:
+            self.img = BIRD_IMGS[2]
+        elif self.img_count < self.ANIMATION_TIME * 4:
+            self.img = BIRD_IMGS[1]
+        elif self.img_count == self.ANIMATION_TIME * 4 + 1:
+            self.img = BIRD_IMGS[0]
+            self.img_count = 0
+
+        # Don't flap wings if falling
+        if self.tilt <= -80:
+            self.img = BIRD_IMGS[1]
+            self.img_count = self.ANIMATION_TIME * 2
+
+        rotated_image = pygame.transform.rotate(self.img, self.tilt)
+        new_rect = rotated_image.get_rect(center=self.img.get_rect(topleft=(self.x, self.y)).center)
+        win.blit(rotated_image, new_rect.topleft)
+
+    def get_mask(self):
+        return pygame.mask.from_surface(self.img)
+
+
 class Pipe:
     #Constant to keep track of the gap between our pipes
     PIPE_GAP = 200
@@ -63,10 +132,12 @@ class Pipe:
         win.blit(self.TOP_PIPE,(self.x,self.top))
         win.blit(self.BOTTOM_PIPE,(self.x,self.bottom))
 
-def draw_window(win, pipes):
+
+def draw_window(win, pipes, bird):
     win.blit(BG_IMG, (0, 0))  # Draw background first
     for pipe in pipes:  # Draw all pipes
         pipe.draw(win)
+    bird.draw(win) # draw the bird
     pygame.display.update()
 
     
@@ -74,6 +145,7 @@ def main():
     pygame.init()
     win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     pipes = [Pipe(600)]  # Initialize with one pipe
+    bird = Bird(230, 350)  # Initialize bird at a specific position
     clock = pygame.time.Clock()  # Control the frame rate
     run = True
 
@@ -82,10 +154,16 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    bird.jump()
 
         # Move pipes
         for pipe in pipes:
             pipe.move_pipe()
+            
+        # # Move bird
+        bird.move()
 
         # Add a new pipe if the last one moves left enough
         if pipes[-1].x < 300:
@@ -95,7 +173,7 @@ def main():
         pipes = [pipe for pipe in pipes if pipe.x + pipe.TOP_PIPE.get_width() > 0]
 
         # Draw everything
-        draw_window(win, pipes)
+        draw_window(win, pipes, bird)
 
     pygame.quit()
     quit()
