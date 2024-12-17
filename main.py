@@ -131,7 +131,27 @@ class Pipe:
     def draw(self,win):
         win.blit(self.TOP_PIPE,(self.x,self.top))
         win.blit(self.BOTTOM_PIPE,(self.x,self.bottom))
+    def collide(self, bird):
+            # Rectangle Collision Detection
+            bird_rect = pygame.Rect(bird.x, bird.y, bird.img.get_width(), bird.img.get_height())
+            top_pipe_rect = pygame.Rect(self.x, self.top, self.TOP_PIPE.get_width(), self.TOP_PIPE.get_height())
+            bottom_pipe_rect = pygame.Rect(self.x, self.bottom, self.BOTTOM_PIPE.get_width(), self.BOTTOM_PIPE.get_height())
 
+            if not (bird_rect.colliderect(top_pipe_rect) or bird_rect.colliderect(bottom_pipe_rect)):
+                return False
+
+            # Pixel-Perfect Collision Detection
+            bird_mask = bird.get_mask()
+            top_mask = pygame.mask.from_surface(self.TOP_PIPE)
+            bottom_mask = pygame.mask.from_surface(self.BOTTOM_PIPE)
+
+            top_offset = (self.x - bird.x, self.top - round(bird.y))
+            bottom_offset = (self.x - bird.x, self.bottom - round(bird.y))
+
+            top_collision = bird_mask.overlap(top_mask, top_offset)
+            bottom_collision = bird_mask.overlap(bottom_mask, bottom_offset)
+
+            return top_collision or bottom_collision
 
 def draw_window(win, pipes, bird):
     win.blit(BG_IMG, (0, 0))  # Draw background first
@@ -168,7 +188,7 @@ class Floor:
         win.blit(BASE_IMG, (self.x1, self.y))  # First image
         win.blit(BASE_IMG, (self.x2, self.y))  # Second image
 
-def draw_window(win, pipes, bird, floor):
+def draw_window(win, pipes, bird, floor, score, font):
     win.blit(BG_IMG, (0, 0))  # Draw background first
         # Draw pipes
     for pipe in pipes:
@@ -180,6 +200,10 @@ def draw_window(win, pipes, bird, floor):
     # Draw the bird
     bird.draw(win)
 
+    # Display the score
+    score_text = font.render(f"Score: {score}", 1, (255, 255, 255))
+    win.blit(score_text, (WINDOW_WIDTH - score_text.get_width() - 10, 10))  # Top-right corner
+
     pygame.display.update()
     
 def main():
@@ -190,43 +214,58 @@ def main():
     floor = Floor(730)  # Initialize the floor
     pipes = [Pipe(600)]  # Initialize with one pipe
     clock = pygame.time.Clock()  # Control the frame rate
+    score = 0                     # Track the player's score
+    font = pygame.font.SysFont("comicsans", 50)  # Font for the score display
+    
     run = True
 
     
     while run:
-        clock.tick(30)  # Set frame rate to 30 FPS
+        clock.tick(30)  # Maintain a frame rate of 30 FPS
+
+        # Handle user input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                run = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    bird.jump()
-
+                run = False  # Quit the game if the window is closed
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                bird.jump()  # Make the bird jump if SPACE is pressed
 
         # Move the floor
         floor.move()
-       
-        # Move pipes
-        for pipe in pipes:
-            pipe.move_pipe()
-            
-        # # Move bird
-        bird.move()
 
-        # Add a new pipe if the last one moves left enough
-        if pipes[-1].x < 300:
+        # Move pipes and check if the bird passes a pipe (increase score)
+        add_pipe = False
+        for pipe in pipes:
+            pipe.move_pipe()  # Move the pipe to the left
+
+            # Check for collisions with pipes
+            if pipe.collide(bird):  # Pixel-perfect collision detection
+                run = False  # End the game if bird hits a pipe
+
+            # Check if the bird passes the pipe
+            if not pipe.passed and pipe.x < bird.x:
+                pipe.passed = True
+                score += 1  # Increment score when bird passes a pipe
+                add_pipe = True
+
+        # Add a new pipe when the last pipe passes a certain point
+        if add_pipe:
             pipes.append(Pipe(600))
 
-        # Remove pipes that go off-screen
+        # Remove pipes that have moved off-screen
         pipes = [pipe for pipe in pipes if pipe.x + pipe.TOP_PIPE.get_width() > 0]
 
-        # Check if bird collides with the floor
+        # Move the bird
+        bird.move()
+
+        # Check if the bird hits the floor
         if bird.y + bird.img.get_height() >= floor.y:
-            run = False  # End game if bird hits the floor
+            run = False  # End the game if bird hits the floor
 
-        # Draw everything
-        draw_window(win, pipes, bird, floor)
+        # Draw all game elements
+        draw_window(win, pipes, bird, floor, score, font)
 
+    # Quit pygame when the game loop ends
     pygame.quit()
     quit()
 
