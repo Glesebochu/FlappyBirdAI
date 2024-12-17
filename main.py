@@ -140,15 +140,59 @@ def draw_window(win, pipes, bird):
     bird.draw(win) # draw the bird
     pygame.display.update()
 
+
+class Floor:
+
+    FLOOR_VEL = 5  # Speed at which the ground moves
+
+    def __init__(self, y):
+ 
+        self.y = y
+        self.width = BASE_IMG.get_width()  # Width of the floor image
+        self.x1 = 0  # First image starts at position 0
+        self.x2 = self.width  # Second image starts right after the first image
+
+    def move(self):
+ 
+        self.x1 -= self.FLOOR_VEL
+        self.x2 -= self.FLOOR_VEL
+
+        # Reset positions to create looping effect
+        if self.x1 + self.width < 0:
+            self.x1 = self.x2 + self.width
+        if self.x2 + self.width < 0:
+            self.x2 = self.x1 + self.width
+
+    def draw(self, win):
+
+        win.blit(BASE_IMG, (self.x1, self.y))  # First image
+        win.blit(BASE_IMG, (self.x2, self.y))  # Second image
+
+def draw_window(win, pipes, bird, floor):
+    win.blit(BG_IMG, (0, 0))  # Draw background first
+        # Draw pipes
+    for pipe in pipes:
+        pipe.draw(win)
+
+    # Draw the floor
+    floor.draw(win)
+
+    # Draw the bird
+    bird.draw(win)
+
+    pygame.display.update()
     
 def main():
     pygame.init()
     win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    pipes = [Pipe(600)]  # Initialize with one pipe
+
     bird = Bird(230, 350)  # Initialize bird at a specific position
+    floor = Floor(730)  # Initialize the floor
+    pipes = [Pipe(600)]  # Initialize with one pipe
     clock = pygame.time.Clock()  # Control the frame rate
     run = True
 
+    
     while run:
         clock.tick(30)  # Set frame rate to 30 FPS
         for event in pygame.event.get():
@@ -158,6 +202,10 @@ def main():
                 if event.key == pygame.K_SPACE:
                     bird.jump()
 
+
+        # Move the floor
+        floor.move()
+       
         # Move pipes
         for pipe in pipes:
             pipe.move_pipe()
@@ -172,8 +220,12 @@ def main():
         # Remove pipes that go off-screen
         pipes = [pipe for pipe in pipes if pipe.x + pipe.TOP_PIPE.get_width() > 0]
 
+        # Check if bird collides with the floor
+        if bird.y + bird.img.get_height() >= floor.y:
+            run = False  # End game if bird hits the floor
+
         # Draw everything
-        draw_window(win, pipes, bird)
+        draw_window(win, pipes, bird, floor)
 
     pygame.quit()
     quit()
