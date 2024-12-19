@@ -1,0 +1,79 @@
+[NEAT]
+fitness_criterion     = max        # Use the single best individual's fitness each generation to guide progress
+fitness_threshold     = 100        # Stop evolving once a genome achieves a fitness of at least 100
+pop_size              = 100        # Each generation will have 20 genomes, balancing diversity with efficiency
+reset_on_extinction   = False      # If all species die out, do not reset; rely on existing parameters for recovery
+
+[DefaultGenome]
+# node activation options
+activation_default      = tanh     # Nodes use the tanh function, providing smooth outputs in [-1, 1]
+activation_mutate_rate  = 0.0      # Activation functions won't change once set
+activation_options      = tanh     # Only tanh is available, ensuring uniformity in node behavior
+
+# node aggregation options
+aggregation_default     = sum      # Inputs to each node are summed, a simple and common aggregation method
+aggregation_mutate_rate = 0.0      # No changes in the aggregation function over time
+aggregation_options     = sum      # Summation is the only aggregation method used
+
+# node bias options
+bias_init_mean          = 0.0      # Initial biases are centered at zero, promoting balanced starting behavior
+bias_init_stdev         = 1.0      # Biases vary initially to help differentiate node responses early on
+bias_max_value          = 30.0     # Keep biases within a large but finite range to prevent extreme outputs
+bias_min_value          = -30.0    # Biases can't become overly negative, preserving numeric stability
+bias_mutate_power       = 0.5      # Biases nudge gradually when mutated, allowing fine-tuning over time
+bias_mutate_rate        = 0.7      # Frequent bias mutations encourage constant refinement in node behavior
+bias_replace_rate       = 0.1      # Occasionally reset a bias entirely, allowing fresh starts in some nodes
+
+# genome compatibility options
+compatibility_disjoint_coefficient = 1.0  # Differences in structure matter equally when forming species
+compatibility_weight_coefficient   = 0.5  # Weight differences have half the impact of structural differences
+
+# connection add/remove rates
+conn_add_prob           = 0.5      # New connections appear often, helping the network explore more complex solutions
+conn_delete_prob        = 0.5      # Connections are also removed frequently, preventing bloated networks
+
+# connection enable options
+enabled_default         = True     # New connections start active, allowing them to influence outputs immediately
+enabled_mutate_rate     = 0.01     # Rarely disable or re-enable connections, occasionally altering flow of information
+
+feed_forward            = True     # No loops; the network flows forward from inputs to outputs for simplicity
+initial_connection      = full     # Initially every input connects to each output, starting with a fully-wired mapping
+
+# node add/remove rates
+node_add_prob           = 0.2      # Adding nodes occasionally creates new processing steps and complexity
+node_delete_prob        = 0.2      # Removing nodes prunes complexity, focusing on the most useful pathways
+
+# network parameters
+num_hidden              = 0        # Start with no hidden nodes; complexity emerges through mutations over time
+num_inputs              = 3        # The network sees three input signals (The birds Y position, The height of the top &bottom pipe)
+num_outputs             = 1        # A single output to decide whether to flap (e.g., positive = flap)
+
+# node response options (mostly unused here)
+response_init_mean      = 1.0      # Responses start uniform; with no mutations, they remain constant
+response_init_stdev     = 0.0      # No variation in initial node response settings
+response_max_value      = 30.0     # Bounds exist to avoid extreme node responses if they were used
+response_min_value      = -30.0    # Lower bound on responses
+response_mutate_power   = 0.0      # No step size for mutation; these are effectively disabled
+response_mutate_rate    = 0.0      # No response mutations occur
+response_replace_rate   = 0.0      # No response replacements occur
+
+# connection weight options
+weight_init_mean        = 0.0      # Start weights centered around zero for a neutral initial response
+weight_init_stdev       = 1.0      # Initial weight variations encourage different initial policies
+weight_max_value        = 30       # Keep weights within a reasonable range to avoid saturation
+weight_min_value        = -30      # Prevent extremely negative weights that could destabilize training
+weight_mutate_power     = 0.5      # Adjust weights slightly on mutation, allowing subtle refinements
+weight_mutate_rate      = 0.8      # High mutation rate keeps the evolutionary search flexible and adaptive
+weight_replace_rate     = 0.1      # Occasionally reset a weight entirely, fostering new strategies
+
+[DefaultSpeciesSet]
+compatibility_threshold = 3.0       # Genomes must be fairly similar to be considered the same species, promoting diversity
+
+[DefaultStagnation]
+species_fitness_func = max          # Species improvement is judged by their top performer’s fitness
+max_stagnation       = 20           # After 20 generations without improvement, a species is removed
+species_elitism      = 2            # Keep the top 2 genomes in a species even if it's stagnating, preserving proven strategies
+
+[DefaultReproduction]
+elitism            = 2              # Always carry over the top 2 individuals to ensure the best solutions persist
+survival_threshold = 0.2            # Only the top 20% in each species reproduce, maintaining a competitive environment
