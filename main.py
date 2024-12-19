@@ -1,6 +1,7 @@
 import pygame
 import random
 import os
+import neat
 
 #Constants to define the window we will be working with.
 #Ideally the width should be the same as the background for the flappy bird we will use.
@@ -272,3 +273,54 @@ def main():
 
 #Calling Main
 main()
+def run(config_path):
+    # Create a NEAT configuration object by reading parameters from the config file.
+    # This sets up the rules for how genomes are initialized, mutated, and evolved.
+    config = neat.config.Config(
+        neat.DefaultGenome,       # The type of genome class to use
+        neat.DefaultReproduction, # How to reproduce and mutate genomes
+        neat.DefaultSpeciesSet,   # How to group similar genomes into species
+        neat.DefaultStagnation,   # How to handle species that stop improving
+        config_path               # Path to the NEAT configuration file
+    )
+
+    # Initialize a NEAT Population with the given configuration.
+    # This creates the initial set of genomes and sets the stage for evolution.
+    population = neat.Population(config)
+
+    # Add a StdOutReporter to the population. This reporter prints information
+    # about each generation to the console, such as the best genome’s fitness.
+    # Setting True means we will see more detailed output during the run.
+    population.add_reporter(neat.StdOutReporter(True))
+
+    # Create a StatisticsReporter to keep track of various statistics during evolution.
+    # This object can record the fitness of each generation and help with post-run analysis.
+    stats = neat.StatisticsReporter()
+
+    # Add the statistics reporter to the population. This ensures that as NEAT runs,
+    # it logs and stores data (like the best fitness each generation) for later examination.
+    population.add_reporter(stats)
+
+    # Run the NEAT algorithm using the main function as the fitness evaluation callback.
+    # Here, 'main' is the function that runs our Flappy Bird game loop and evaluates
+    # the performance of a genome. The second argument, 50, is the number of generations
+    # to run before giving up if no solution meets the fitness_threshold.
+    winner = population.run(main, 50)
+
+    # After evolution completes (either because we reached the fitness goal or hit the
+    # max generation limit), 'winner' will contain the best genome found. You can use it
+    # to analyze or visualize the final solution.
+
+
+if __name__ == "__main__":
+    # Get the directory where this script is located.
+    local_dir = os.path.dirname(__file__)
+
+    # Construct the full path to the NEAT config file by joining the local directory
+    # with the filename of the configuration file. This ensures that no matter where
+    # the script is run from, it can find the config file as long as it's in the same folder.
+    config_path = os.path.join(local_dir, "ConfigFile.txt")
+
+    # Start the NEAT run using the specified configuration.
+    # This initiates the whole evolutionary process for the Flappy Bird agent.
+    run(config_path)
