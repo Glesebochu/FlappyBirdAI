@@ -8,6 +8,9 @@ import neat
 WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 800
 
+#Global variable to keep track of the generations
+GEN = -1
+
 # Load bird images and scale them up.
 BIRD_IMGS = [
     pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird1.png"))),
@@ -38,7 +41,7 @@ class Bird:
 
     def jump(self):
         # Give the bird an upward velocity and reset tick_count
-        self.velocity = -10.5
+        self.velocity = -8
         self.tick_count = 0
         self.height = self.y
 
@@ -97,7 +100,7 @@ class Bird:
 
 class Pipe:
     # Vertical gap between the top and bottom pipe.
-    PIPE_GAP = 200
+    PIPE_GAP = 110
     PIPE_VEL = 5  # Speed at which pipes move to the left (bird is effectively moving forward)
 
     def __init__(self, x):
@@ -178,7 +181,7 @@ class Floor:
         win.blit(BASE_IMG, (self.x2, self.y))
 
 
-def draw_window(win, pipes, birds, floor, score, font):
+def draw_window(win, pipes, birds, floor, score, font, generations):
     win.blit(BG_IMG, (0, 0))  # Draw background first
 
     # Draw pipes
@@ -196,6 +199,14 @@ def draw_window(win, pipes, birds, floor, score, font):
     score_text = font.render(f"Score: {score}", 1, (255, 255, 255))
     win.blit(score_text, (WINDOW_WIDTH - score_text.get_width() - 10, 10))
 
+    # Display current generation on screen
+    GenerationsText = font.render(f"Gen: {GEN}", 1, (255, 255, 255))
+    win.blit(GenerationsText, (10, 10))
+
+    # Display current score on screen
+    # score_text = font.render(f"Score: {score}", 1, (255, 255, 255))
+    # win.blit(score_text, (WINDOW_WIDTH - score_text.get_width() - 10, 10))
+
     pygame.display.update()
 
 
@@ -205,6 +216,8 @@ def main(genomes, config):
     'genomes' is a list of tuples (genome_id, genome_object).
     'config' is the NEAT configuration object.
     """
+    global GEN 
+    GEN = GEN + 1
 
     pygame.init()
     win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -263,7 +276,7 @@ def main(genomes, config):
             # Inputs: bird's vertical position and the vertical distance to the bottom of the closest pipe.
             # This helps the network decide whether to jump.
             # Corrected input: pipes[pipe_index].bottom is an integer, we compare bird.y to that.
-            inputs = (bird.y, abs(bird.y - pipes[pipe_index].bottom))
+            inputs = (bird.y, abs(bird.y - pipes[pipe_index].height),abs(bird.y - pipes[pipe_index].bottom))
             output = networks[bird_index].activate(inputs)
 
             # If output > 0.5, make the bird jump
@@ -311,7 +324,7 @@ def main(genomes, config):
                 networks.pop(bird_index)
                 genome_list.pop(bird_index)
 
-        draw_window(win, pipes, birds, floor, score, font)
+        draw_window(win, pipes, birds, floor, score, font, GEN)
 
 
 def run(config_path):
