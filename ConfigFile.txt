@@ -3,7 +3,7 @@
 fitness_criterion     = max
 
 # Stop evolving once a genome achieves a fitness of at least 100
-fitness_threshold     = 300
+fitness_threshold     = 1000
 
 # Each generation will have 100 genomes, balancing diversity with efficiency
 pop_size              = 100
