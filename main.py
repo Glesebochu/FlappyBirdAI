@@ -181,17 +181,14 @@ class Floor:
         win.blit(BASE_IMG, (self.x2, self.y))
 
 
-def draw_window(win, pipes, birds, floor, score, font, generations):
-    win.blit(BG_IMG, (0, 0))  # Draw background first
+def draw_window(win, pipes, birds, floor, score, font, gen, wind_active):
+    win.blit(BG_IMG, (0, 0))
 
-    # Draw pipes
     for pipe in pipes:
         pipe.draw(win)
 
-    # Draw the moving floor
     floor.draw(win)
 
-    # Draw each bird
     for bird in birds:
         bird.draw(win)
 
@@ -200,12 +197,16 @@ def draw_window(win, pipes, birds, floor, score, font, generations):
     win.blit(score_text, (WINDOW_WIDTH - score_text.get_width() - 10, 10))
 
     # Display current generation on screen
-    GenerationsText = font.render(f"Gen: {GEN}", 1, (255, 255, 255))
-    win.blit(GenerationsText, (10, 10))
+    gen_text = font.render(f"Gen: {gen}", 1, (255, 255, 255))
+    win.blit(gen_text, (10, 10))
 
-    # Display current score on screen
-    # score_text = font.render(f"Score: {score}", 1, (255, 255, 255))
-    # win.blit(score_text, (WINDOW_WIDTH - score_text.get_width() - 10, 10))
+    # Display wind effect text if active
+    if wind_active:
+        wind_text = font.render("Wind Effect!", 1, (255, 0, 0))
+        win.blit(wind_text, (WINDOW_WIDTH // 2 - wind_text.get_width() // 2, 50))
+    else:
+        # Clear the area where the wind text would be displayed
+        pygame.draw.rect(win, (0, 0, 0), (WINDOW_WIDTH // 2 - 100, 50, 200, 50))
 
     pygame.display.update()
 
@@ -226,143 +227,18 @@ def apply_wind_effect(birds, pipes, wind_active):
         return True  # Wind effect is active
 
     return False  # Wind effect is not active
- 
-def draw_wind_effect(win, wind_active):
-    if wind_active:
-        wind_text = pygame.font.SysFont("comicsans", 50).render("Wind Effect!", 1, (255, 0, 0))
-        win.blit(wind_text, (WINDOW_WIDTH - wind_text.get_width() -  2, 10))
-
-def main(genomes, config):
-    """
-    This function is used by NEAT to evaluate the fitness of genomes.
-    'genomes' is a list of tuples (genome_id, genome_object). 
-    'config' is the NEAT configuration object.
-    """
-    global GEN 
-    GEN = GEN + 1
-
-    pygame.init()
-    win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-
-    # For each genome, we create a neural network, track the bird it controls, and track the genome itself.
-    birds = []
-    networks = []
-    genome_list = []
-
-    for _, genome in genomes:
-        # Create a neural network for this genome using the chosen NEAT configuration.
-        net = neat.nn.FeedForwardNetwork.create(genome, config)
-        networks.append(net)
-        
-        # Initialize the bird controlled by this genome at a fixed starting position.
-        birds.append(Bird(230, 350))
-        
-        # Initialize the genome's fitness. Higher fitness means better performance.
-        genome.fitness = 0
-        genome_list.append(genome)
-
-    floor = Floor(730)
-    pipes = [Pipe(600)]
-    clock = pygame.time.Clock()
-    score = 0
-    font = pygame.font.SysFont("comicsans", 50)
-
-    run = True
-    wind_active = False  # Initialize wind_active before the game loop
-    
-    while run:
-        clock.tick(30)  # 30 FPS cap
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                run = False
-                pygame.quit()
-                quit()
-
-        # Determine which pipe to consider for deciding whether to jump.
-        # If the bird has passed the first pipe, focus on the next one.
-        pipe_index = 0
-        if len(birds) > 0:
-            if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].TOP_PIPE.get_width():
-                pipe_index = 1
-        else:
-            # No birds left, end simulation for this generation.
-            run = False
-            break
-
-        # For each bird, get input from the game state and feed it into the neural network.
-        for bird_index, bird in enumerate(birds):
-            bird.move()
-            # Give a small reward each frame for staying alive.
-            genome_list[bird_index].fitness += 0.1
-
-            # Inputs: bird's vertical position and the vertical distance to the bottom of the closest pipe.
-            # This helps the network decide whether to jump.
-            # Corrected input: pipes[pipe_index].bottom is an integer, we compare bird.y to that.
-            inputs = (bird.y, abs(bird.y - pipes[pipe_index].height),abs(bird.y - pipes[pipe_index].bottom))
-            output = networks[bird_index].activate(inputs)
-
-            # If output > 0.5, make the bird jump
-            if output[0] > 0.5:
-                bird.jump()
-
-        # Move the floor to create continuous scrolling
-        floor.move()
-
-        add_pipe = False
-        # Move pipes and check collisions or passing events
-        for pipe in pipes:
-            # Check collision with each bird
-            for bird_index, bird in enumerate(birds):
-                if pipe.collide(bird):
-                    # If bird hits a pipe, penalize its genome and remove it
-                    genome_list[bird_index].fitness -= 1
-                    birds.pop(bird_index)
-                    networks.pop(bird_index)
-                    genome_list.pop(bird_index)
-                    continue  # Move on to next bird
-
-                # If the bird passed the pipe successfully, increase score and give a reward
-                if not pipe.passed and pipe.x < bird.x:
-                    pipe.passed = True
-                    score += 1
-                    for genome_obj in genome_list:
-                        genome_obj.fitness += 5
-                    add_pipe = True
-
-            pipe.move_pipe()
-
-        # If a pipe was passed, add a new one ahead
-        if add_pipe:
-            pipes.append(Pipe(600))
-
-        # Remove off-screen pipes
-        pipes = [pipe for pipe in pipes if pipe.x + pipe.TOP_PIPE.get_width() > 0]
-
-        # Remove birds that hit the floor or fly too high
-        for bird_index, bird in enumerate(birds):
-            if bird.y + bird.img.get_height() >= floor.y or bird.y < 0:
-                # Bird crashed or flew out of bounds
-                birds.pop(bird_index)
-                networks.pop(bird_index)
-                genome_list.pop(bird_index)
-
-        # Apply wind effect
-        wind_active = apply_wind_effect(birds, pipes, wind_active)
-
-        draw_window(win, pipes, birds, floor, score, font, GEN)
 
 def ask_mode():
     pygame.init()
     win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    font = pygame.font.SysFont("comicsans", 50)
+    font = pygame.font.SysFont("comicsans", 30)
     clock = pygame.time.Clock()
     run = True
     mode = None
 
     while run:
         win.fill((0, 0, 0))
-        text = font.render("Enter 'T' to train or 'P' to play", 1, (255, 255, 255))
+        text = font.render("Press 'T' to train or 'P' to play", 1, (255, 255, 255))
         win.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - text.get_height() // 2))
         pygame.display.update()
 
@@ -439,7 +315,126 @@ def play_game():
         wind_active = apply_wind_effect(birds, pipes, wind_active)
 
         # Draw everything on the screen
-        draw_window(win, pipes, birds, floor, score, font, GEN)
+        draw_window(win, pipes, birds, floor, score, font, GEN, wind_active)
+
+def main(genomes, config):
+    """
+    This function is used by NEAT to evaluate the fitness of genomes.
+    'genomes' is a list of tuples (genome_id, genome_object). 
+    'config' is the NEAT configuration object.
+    """
+    global GEN 
+    GEN = GEN + 1
+
+    pygame.init()
+    win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+
+    # For each genome, we create a neural network, track the bird it controls, and track the genome itself.
+    birds = []
+    networks = []
+    genome_list = []
+
+    for _, genome in genomes:
+        # Create a neural network for this genome using the chosen NEAT configuration.
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
+        networks.append(net)
+        
+        # Initialize the bird controlled by this genome at a fixed starting position.
+        birds.append(Bird(230, 350))
+        
+        # Initialize the genome's fitness. Higher fitness means better performance.
+        genome.fitness = 0
+        genome_list.append(genome)
+
+    floor = Floor(730)
+    pipes = [Pipe(600)]
+    clock = pygame.time.Clock()
+    score = 0
+    font = pygame.font.SysFont("comicsans", 50)
+
+    run = True
+    wind_active = False  # Initialize wind_active before the game loop
+    
+    while run:
+        clock.tick(30)  # 30 FPS cap
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                pygame.quit()
+                quit()
+
+        # Determine which pipe to consider for deciding whether to jump.
+        # If the bird has passed the first pipe, focus on the next one.
+        pipe_index = 0
+        if len(birds) > 0:
+            if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].TOP_PIPE.get_width():
+                pipe_index = 1
+        else:
+            # No birds left, end simulation for this generation.
+            run = False
+            break
+
+        # For each bird, get input from the game state and feed it into the neural network.
+        for bird_index, bird in enumerate(birds):
+            bird.move()
+            # Give a small reward each frame for staying alive.
+            genome_list[bird_index].fitness += 0.1
+
+            # Inputs: bird's vertical position, the vertical distance to the bottom of the closest pipe, and wind effect status.
+            inputs = (bird.y, abs(bird.y - pipes[pipe_index].height), abs(bird.y - pipes[pipe_index].bottom), int(wind_active))
+            output = networks[bird_index].activate(inputs)
+
+            # If output > 0.5, make the bird jump
+            if output[0] > 0.5:
+                bird.jump()
+
+        # Move the floor to create continuous scrolling
+        floor.move()
+
+        add_pipe = False
+        # Move pipes and check collisions or passing events
+        for pipe in pipes:
+            # Check collision with each bird
+            for bird_index, bird in enumerate(birds):
+                if pipe.collide(bird):
+                    # If bird hits a pipe, penalize its genome and remove it
+                    genome_list[bird_index].fitness -= 1
+                    birds.pop(bird_index)
+                    networks.pop(bird_index)
+                    genome_list.pop(bird_index)
+                    continue  # Move on to next bird
+
+                # If the bird passed the pipe successfully, increase score and give a reward
+                if not pipe.passed and pipe.x < bird.x:
+                    pipe.passed = True
+                    score += 1
+                    for genome_obj in genome_list:
+                        genome_obj.fitness += 5
+                    add_pipe = True
+
+            pipe.move_pipe()
+
+        # If a pipe was passed, add a new one ahead
+        if add_pipe:
+            pipes.append(Pipe(600))
+
+        # Remove off-screen pipes
+        pipes = [pipe for pipe in pipes if pipe.x + pipe.TOP_PIPE.get_width() > 0]
+
+        # Remove birds that hit the floor or fly too high
+        for bird_index, bird in enumerate(birds):
+            if bird.y + bird.img.get_height() >= floor.y or bird.y < 0:
+                # Bird crashed or flew out of bounds
+                birds.pop(bird_index)
+                networks.pop(bird_index)
+                genome_list.pop(bird_index)
+
+        # Apply wind effect
+        wind_active = apply_wind_effect(birds, pipes, wind_active)
+
+        # Draw everything on the screen
+        draw_window(win, pipes, birds, floor, score, font, GEN, wind_active)
 
 def run(config_path):
     """

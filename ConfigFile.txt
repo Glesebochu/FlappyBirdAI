@@ -102,7 +102,7 @@ node_delete_prob        = 0.2
 num_hidden              = 0
 
 # The network sees three input signals (The bird's Y position, The height of the top & bottom pipe)
-num_inputs              = 3
+num_inputs              = 4
 
 # A single output to decide whether to flap (e.g., positive = flap)
 num_outputs             = 1
