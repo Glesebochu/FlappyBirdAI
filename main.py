@@ -42,6 +42,12 @@ class Bird:
     def jump(self):
         # Give the bird an upward velocity and reset tick_count
         self.velocity = -11
+        self.tick_count = 0 
+        self.height = self.y 
+
+    def high_jump(self):
+        # Give the bird a higher upward velocity and reset tick_count
+        self.velocity = -15
         self.tick_count = 0
         self.height = self.y
 
@@ -204,29 +210,30 @@ def draw_window(win, pipes, birds, floor, score, font, gen, wind_active):
     if wind_active:
         wind_text = font.render("Wind Effect!", 1, (255, 0, 0))
         win.blit(wind_text, (WINDOW_WIDTH // 2 - wind_text.get_width() // 2, 50))
-    else:
-        # Clear the area where the wind text would be displayed
-        pygame.draw.rect(win, (0, 0, 0), (WINDOW_WIDTH // 2 - 100, 50, 200, 50))
 
     pygame.display.update()
 
-def apply_wind_effect(birds, pipes, wind_active):
+def apply_wind_effect(birds, pipes, wind_active, wind_timer):
     # Check if any bird is between pipes
     for bird in birds:
         for pipe in pipes:
             if pipe.x < bird.x < pipe.x + pipe.TOP_PIPE.get_width():
-                return wind_active  # Bird is entering or inside a pipe, no wind effect
+                return False, 0  # Bird is entering or inside a pipe, disable wind effect
 
     # If no bird is between pipes, apply wind effect
     if not wind_active:
-        wind_active = random.random() < 0.1  # 10% chance to start wind effect
+        if random.random() < 0.1:  # 10% chance to start wind effect
+            wind_active = True
+            wind_timer = random.randint(30, 90)  # Wind effect lasts for 1 to 3 seconds (30 to 90 frames)
 
     if wind_active:
         for bird in birds:
             bird.y += 10  # Push the bird down by 10 pixels each frame
-        return True  # Wind effect is active
+        wind_timer -= 1
+        if wind_timer <= 0:
+            wind_active = False
 
-    return False  # Wind effect is not active
+    return wind_active, wind_timer
 
 def ask_mode():
     pygame.init()
@@ -270,6 +277,7 @@ def play_game():
     score = 0
     run = True
     wind_active = False
+    wind_timer = 0
 
     while run:
         clock.tick(30)  # 30 FPS cap
@@ -282,6 +290,8 @@ def play_game():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     birds[0].jump()
+                elif event.key == pygame.K_UP:
+                    birds[0].high_jump()
 
         # Move the bird
         birds[0].move()
@@ -312,7 +322,7 @@ def play_game():
             run = False  # End game if bird hits the floor or flies out of bounds
 
         # Apply wind effect
-        wind_active = apply_wind_effect(birds, pipes, wind_active)
+        wind_active, wind_timer = apply_wind_effect(birds, pipes, wind_active, wind_timer)
 
         # Draw everything on the screen
         draw_window(win, pipes, birds, floor, score, font, GEN, wind_active)
@@ -354,6 +364,7 @@ def main(genomes, config):
 
     run = True
     wind_active = False  # Initialize wind_active before the game loop
+    wind_timer = 0  # Initialize wind_timer before the game loop
     
     while run:
         clock.tick(30)  # 30 FPS cap
@@ -385,9 +396,12 @@ def main(genomes, config):
             inputs = (bird.y, abs(bird.y - pipes[pipe_index].height), abs(bird.y - pipes[pipe_index].bottom), int(wind_active))
             output = networks[bird_index].activate(inputs)
 
-            # If output > 0.5, make the bird jump
+            # If output[0] > 0.5, make the bird jump
             if output[0] > 0.5:
                 bird.jump()
+            # If output[1] > 0.5, make the bird high jump
+            elif output[1] > 0.5:
+                bird.high_jump()
 
         # Move the floor to create continuous scrolling
         floor.move()
@@ -431,7 +445,7 @@ def main(genomes, config):
                 genome_list.pop(bird_index)
 
         # Apply wind effect
-        wind_active = apply_wind_effect(birds, pipes, wind_active)
+        wind_active, wind_timer = apply_wind_effect(birds, pipes, wind_active, wind_timer)
 
         # Draw everything on the screen
         draw_window(win, pipes, birds, floor, score, font, GEN, wind_active)

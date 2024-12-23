@@ -104,8 +104,8 @@ num_hidden              = 0
 # The network sees three input signals (The bird's Y position, The height of the top & bottom pipe)
 num_inputs              = 4
 
-# A single output to decide whether to flap (e.g., positive = flap)
-num_outputs             = 1
+# The bird has two outputs(jumpp and high jump)
+num_outputs             = 2
 
 
 # node response options (mostly unused here)
