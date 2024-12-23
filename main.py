@@ -41,7 +41,7 @@ class Bird:
 
     def jump(self):
         # Give the bird an upward velocity and reset tick_count
-        self.velocity = -8
+        self.velocity = -11
         self.tick_count = 0
         self.height = self.y
 
@@ -100,7 +100,7 @@ class Bird:
 
 class Pipe:
     # Vertical gap between the top and bottom pipe.
-    PIPE_GAP = 110
+    PIPE_GAP = 200
     PIPE_VEL = 5  # Speed at which pipes move to the left (bird is effectively moving forward)
 
     def __init__(self, x):
@@ -226,16 +226,16 @@ def apply_wind_effect(birds, pipes, wind_active):
         return True  # Wind effect is active
 
     return False  # Wind effect is not active
-
+ 
 def draw_wind_effect(win, wind_active):
     if wind_active:
         wind_text = pygame.font.SysFont("comicsans", 50).render("Wind Effect!", 1, (255, 0, 0))
-        win.blit(wind_text, (WINDOW_WIDTH // 2 - wind_text.get_width() // 2, 10))
+        win.blit(wind_text, (WINDOW_WIDTH - wind_text.get_width() -  2, 10))
 
 def main(genomes, config):
     """
     This function is used by NEAT to evaluate the fitness of genomes.
-    'genomes' is a list of tuples (genome_id, genome_object).
+    'genomes' is a list of tuples (genome_id, genome_object). 
     'config' is the NEAT configuration object.
     """
     global GEN 
@@ -352,6 +352,94 @@ def main(genomes, config):
 
         draw_window(win, pipes, birds, floor, score, font, GEN)
 
+def ask_mode():
+    pygame.init()
+    win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    font = pygame.font.SysFont("comicsans", 50)
+    clock = pygame.time.Clock()
+    run = True
+    mode = None
+
+    while run:
+        win.fill((0, 0, 0))
+        text = font.render("Enter 'T' to train or 'P' to play", 1, (255, 255, 255))
+        win.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - text.get_height() // 2))
+        pygame.display.update()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_t:
+                    mode = 'train'
+                    run = False
+                elif event.key == pygame.K_p:
+                    mode = 'play'
+                    run = False
+
+        clock.tick(30)
+
+    return mode
+
+def play_game():
+    pygame.init()
+    win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    clock = pygame.time.Clock()
+    font = pygame.font.SysFont("comicsans", 50)
+
+    birds = [Bird(230, 350)]
+    floor = Floor(730)
+    pipes = [Pipe(600)]
+    score = 0
+    run = True
+    wind_active = False
+
+    while run:
+        clock.tick(30)  # 30 FPS cap
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    birds[0].jump()
+
+        # Move the bird
+        birds[0].move()
+
+        # Move the floor to create continuous scrolling
+        floor.move()
+
+        add_pipe = False
+        # Move pipes and check collisions or passing events
+        for pipe in pipes:
+            if pipe.collide(birds[0]):
+                run = False  # End game on collision
+                break
+
+            if not pipe.passed and pipe.x < birds[0].x:
+                pipe.passed = True
+                score += 1
+                add_pipe = True
+
+            pipe.move_pipe()
+
+        if add_pipe:
+            pipes.append(Pipe(600))
+
+        pipes = [pipe for pipe in pipes if pipe.x + pipe.TOP_PIPE.get_width() > 0]
+
+        if birds[0].y + birds[0].img.get_height() >= floor.y or birds[0].y < 0:
+            run = False  # End game if bird hits the floor or flies out of bounds
+
+        # Apply wind effect
+        wind_active = apply_wind_effect(birds, pipes, wind_active)
+
+        # Draw everything on the screen
+        draw_window(win, pipes, birds, floor, score, font, GEN)
 
 def run(config_path):
     """
@@ -366,31 +454,33 @@ def run(config_path):
         neat.DefaultReproduction, # Defines how genomes are reproduced (crossover/mutation)
         neat.DefaultSpeciesSet,   # Defines how genomes are grouped into species
         neat.DefaultStagnation,   # Defines how to remove species that are not improving
-        config_path               # The path to the NEAT configuration file with evolutionary parameters
+        config_path
     )
 
-    # Initialize a NEAT Population with the configuration, which creates an initial population of genomes.
+    # Create the population, which is the top-level object for a NEAT run.
     population = neat.Population(config)
 
-    # Add reporters to provide information during the run:
-    # StdOutReporter prints progress and statistics to the console.
+    # Add a stdout reporter to show progress in the terminal.
     population.add_reporter(neat.StdOutReporter(True))
-
-    # StatisticsReporter keeps track of data like best fitness per generation, species diversity, etc.
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
 
-    # Run the evolutionary process, using the 'main' function as the fitness evaluation function.
-    # We'll run up to 50 generations. If a genome reaches the defined fitness goal, evolution stops early.
+    # Run for up to 50 generations.
     winner = population.run(main, 50)
 
     # 'winner' now holds the best genome found during the run. You could further analyze it or replay it.
-
 
 if __name__ == "__main__":
     # Determine the path to the NEAT config file.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, "ConfigFile.txt")
 
-    # Run NEAT with the specified configuration file.
-    run(config_path)
+    mode = ask_mode()
+    if mode == 'train':
+        # Run NEAT with the specified configuration file.
+        run(config_path)
+    elif mode == 'play':
+        # Play the game manually
+        play_game()
+    else:
+        print("Invalid mode selected. Please enter 'train' or 'play'.")
