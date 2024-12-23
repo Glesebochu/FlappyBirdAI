@@ -209,6 +209,28 @@ def draw_window(win, pipes, birds, floor, score, font, generations):
 
     pygame.display.update()
 
+def apply_wind_effect(birds, pipes, wind_active):
+    # Check if any bird is between pipes
+    for bird in birds:
+        for pipe in pipes:
+            if pipe.x < bird.x < pipe.x + pipe.TOP_PIPE.get_width():
+                return wind_active  # Bird is entering or inside a pipe, no wind effect
+
+    # If no bird is between pipes, apply wind effect
+    if not wind_active:
+        wind_active = random.random() < 0.1  # 10% chance to start wind effect
+
+    if wind_active:
+        for bird in birds:
+            bird.y += 10  # Push the bird down by 10 pixels each frame
+        return True  # Wind effect is active
+
+    return False  # Wind effect is not active
+
+def draw_wind_effect(win, wind_active):
+    if wind_active:
+        wind_text = pygame.font.SysFont("comicsans", 50).render("Wind Effect!", 1, (255, 0, 0))
+        win.blit(wind_text, (WINDOW_WIDTH // 2 - wind_text.get_width() // 2, 10))
 
 def main(genomes, config):
     """
@@ -246,6 +268,7 @@ def main(genomes, config):
     font = pygame.font.SysFont("comicsans", 50)
 
     run = True
+    wind_active = False  # Initialize wind_active before the game loop
     
     while run:
         clock.tick(30)  # 30 FPS cap
@@ -323,6 +346,9 @@ def main(genomes, config):
                 birds.pop(bird_index)
                 networks.pop(bird_index)
                 genome_list.pop(bird_index)
+
+        # Apply wind effect
+        wind_active = apply_wind_effect(birds, pipes, wind_active)
 
         draw_window(win, pipes, birds, floor, score, font, GEN)
 
