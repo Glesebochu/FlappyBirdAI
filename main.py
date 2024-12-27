@@ -124,7 +124,7 @@ def createPipe(x):
     """
     Create a pipe with a random height.
     """
-    height = random.randint(80, 200) if random.random() < 0.5 else random.randint(300, 550)
+    height = random.randint(70, 200) if random.random() < 0.5 else random.randint(380, 550)
     return {
         'x': x,
         'height': height,
@@ -336,10 +336,6 @@ def main(genomes, config):
                     for genome in genomeList:
                         genome.fitness += 5
                     addPipe = True
-
-                    # if bird['highJumpActive'] and (bird['y'] < pipes[pipeIndex]['bottom']):
-                    #     genomeList[birdIndex].fitness += 0  # Higher reward for successful high jump
-                    #     bird['highJumpActive'] = False  # Reset highJumpActive after rewarding
 
                 #Punish the birds that fly off into the sky.
                 if bird['y'] < 0 or bird['y'] + bird['image'].get_height() >= floor['y']:
