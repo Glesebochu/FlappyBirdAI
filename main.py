@@ -301,7 +301,7 @@ def main(genomes, config):
             highJumpOutput = output[1]
             jumpOutput = output[0]
 
-            if highJumpOutput > jumpOutput and highJumpOutput > 0.5:
+            if highJumpOutput > 0.5:
                 birdHighJump(bird, bird['windActive'])
                 genomeList[birdIndex].fitness += 0.2
 
