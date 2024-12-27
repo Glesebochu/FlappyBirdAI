@@ -463,7 +463,7 @@ def playGame():
                 addPipe = True
 
         if addPipe:
-            pipes.append(createPipe(pipes[-1]['x'] + 300))  # Fixed gap between pipes
+            pipes.append(createPipe(pipes[-1]['x'] + 400))  # Fixed gap between pipes
 
         pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
 
@@ -565,7 +565,7 @@ def playBestGenome(configPath):
                 addPipe = True
 
         if addPipe:
-            pipes.append(createPipe(pipes[-1]['x'] + 300))  # Fixed gap between pipes
+            pipes.append(createPipe(pipes[-1]['x'] + 400))  # Fixed gap between pipes
 
         pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
 
@@ -592,6 +592,8 @@ def playBestGenome(configPath):
 
         if highJumpOutput > 0.5:
             birdHighJump(bird, bird['windActive'])
+        else:
+            bird['highJumpActive']  = False
 
         if jumpOutput > 0.5:
             birdJump(bird)
