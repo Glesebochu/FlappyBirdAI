@@ -67,8 +67,8 @@ def birdHighJump(bird, windActive):
         # bird['velocity'] = 0  # Stop the downward displacement
         bird['windActive'] = False
 
-    # else:
-    #     bird['velocity'] = 0
+    else:
+        bird['velocity'] -= 20  # Higher upward velocity
     # bird['tickCount'] = 0
     # bird['height'] = bird['y']
 
@@ -124,7 +124,7 @@ def createPipe(x):
     """
     Create a pipe with a random height.
     """
-    height = random.randint(50, 200) if random.random() < 0.5 else random.randint(400, 550)
+    height = random.randint(80, 200) if random.random() < 0.5 else random.randint(300, 550)
     return {
         'x': x,
         'height': height,
@@ -230,15 +230,18 @@ def drawWindow(window, pipes, birds, floor, score, font, generation, genomeList)
 
     if windActiveGenomes:
         windText = font.render(f"Wind Active for genomes: {', '.join(map(str, windActiveGenomes))}", 1, (255, 0, 0))
-        windTextRect = windText.get_rect(center=(WINDOW_WIDTH // 2, 50))
+        windText = pygame.transform.scale(windText, (windText.get_width() // 2, windText.get_height() // 2))
+        windTextRect = windText.get_rect(center=(WINDOW_WIDTH // 3, 100))
         window.blit(windText, windTextRect)
     if windIncomingGenomes:
         windIncomingText = font.render(f"Wind Incoming for genomes: {', '.join(map(str, windIncomingGenomes))}", 1, (0, 255, 0))
-        windIncomingTextRect = windIncomingText.get_rect(center=(WINDOW_WIDTH // 2, 100))
+        windIncomingText = pygame.transform.scale(windIncomingText, (windIncomingText.get_width() // 2, windIncomingText.get_height() // 2))
+        windIncomingTextRect = windIncomingText.get_rect(center=(WINDOW_WIDTH // 3, 150))
         window.blit(windIncomingText, windIncomingTextRect)
     if highJumpActiveGenomes:
         highJumpText = font.render(f"High Jump Active for genomes: {', '.join(map(str, highJumpActiveGenomes))}", 1, (0, 0, 255))
-        highJumpTextRect = highJumpText.get_rect(center=(WINDOW_WIDTH // 2, 150))
+        highJumpText = pygame.transform.scale(highJumpText, (highJumpText.get_width() // 2, highJumpText.get_height() // 2))
+        highJumpTextRect = highJumpText.get_rect(center=(WINDOW_WIDTH // 3, 200))
         window.blit(highJumpText, highJumpTextRect)
 
     pygame.display.update()
@@ -305,8 +308,9 @@ def main(genomes, config):
                 birdHighJump(bird, bird['windActive'])
                 genomeList[birdIndex].fitness += 0.2
 
-                # if bird['y'] > pipes[pipeIndex]['top'] and bird['y'] < pipes[pipeIndex]['bottom']:
-                #     genomeList[birdIndex].fitness -= 0.5  # Punishment for using high jump inside the pipes
+                if bird['x'] > pipes[pipeIndex]['x'] and bird['x'] < pipes[pipeIndex]['x'] + pipes[pipeIndex]['PIPE_TOP'].get_width():
+                    if bird['y'] > pipes[pipeIndex]['top'] and bird['y'] < pipes[pipeIndex]['bottom']:
+                        genomeList[birdIndex].fitness -= 0  # Punishment for using high jump inside the pipes
             else:
                 bird['highJumpActive'] = False
 

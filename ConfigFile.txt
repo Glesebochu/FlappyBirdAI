@@ -3,14 +3,13 @@
 fitness_criterion     = max
 
 # Stop evolving once a genome achieves a fitness of at least 100
-fitness_threshold     = 1000
+fitness_threshold     = 10000
 
 # Each generation will have 100 genomes, balancing diversity with efficiency
-pop_size              = 100
+pop_size              = 200
 
 # If all species die out, do not reset; rely on existing parameters for recovery
 reset_on_extinction   = False
-
 
 [DefaultGenome]
 # node activation options
@@ -99,7 +98,7 @@ node_delete_prob        = 0.2
 
 # network parameters
 # Start with no hidden nodes; complexity emerges through mutations over time
-num_hidden              = 0
+num_hidden              = 1
 
 # The network sees three input signals (The bird's Y position, The height of the top & bottom pipe)
 num_inputs              = 6
