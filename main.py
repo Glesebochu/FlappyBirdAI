@@ -41,7 +41,11 @@ def createBird(x, y):
         'height': y,
         'imageCount': 0,
         'image': BIRD_IMAGES[0],
-        'displacement': 0  # Initialize displacement
+        'displacement': 0,  # Initialize displacement
+        'windDisplacement': 0,  # Initialize wind displacement
+        'windActive': False,  # Initialize wind active
+        'windTimer': 0,  # Initialize wind timer
+        'highJumpActive': False  # Initialize high jump active
     }
 
 def birdJump(bird):
@@ -58,12 +62,15 @@ def birdHighJump(bird, windActive):
     If wind is active, stop the downward displacement.
     Otherwise, set a higher upward velocity.
     """
-    if windActive:
-        bird['displacement'] = 0  # Stop the downward displacement
-    else:
-        bird['velocity'] = -20
-    bird['tickCount'] = 0
-    bird['height'] = bird['y']
+    bird['highJumpActive'] = True
+    if bird['windActive']:
+        # bird['velocity'] = 0  # Stop the downward displacement
+        bird['windActive'] = False
+
+    # else:
+    #     bird['velocity'] = 0
+    # bird['tickCount'] = 0
+    # bird['height'] = bird['y']
 
 def birdMove(bird):
     """
@@ -122,7 +129,7 @@ def createPipe(x):
         'x': x,
         'height': height,
         'top': height - PIPE_IMAGE.get_height(),
-        'bottom': height + 200,  # Pipe.GAP replaced with 200
+        'bottom': height + 200,  # Pipe.GAP is 200
         'PIPE_TOP': pygame.transform.flip(PIPE_IMAGE, False, True),
         'PIPE_BOTTOM': PIPE_IMAGE,
         'passed': False
@@ -185,25 +192,20 @@ def drawFloor(window, floor):
     window.blit(floor['image'], (floor['x2'], floor['y']))
 
 # Wind effect function
-def applyWindEffect(birds, pipes, windActive, windTimer):
+def applyWindEffect(birds):
     """
-    Apply the wind effect to the birds.
+    Apply the wind effect to each bird individually.
     """
     for bird in birds:
-        for pipe in pipes:
-            if pipe['x'] - 50 < bird['x'] < pipe['x'] + pipe['PIPE_TOP'].get_width() + 10:
-                return False, 0
-    if not windActive:
-        if random.random() < 0.1:
-            windActive = True
-            windTimer = random.randint(12, 30)
-    if windActive:
-        for bird in birds:
-            bird['displacement'] += 20  # Directly modify displacement
-        windTimer -= 1
-        if windTimer <= 0:
-            windActive = False
-    return windActive, windTimer
+        if not bird['windActive']:
+            if (not bird['highJumpActive']) and random.random() < 0.1:
+                bird['windActive'] = True
+                bird['windTimer'] = random.randint(12, 30)
+        if bird['windActive']:
+            bird['velocity'] += 20  # Modify wind displacement
+            bird['windTimer'] -= 1
+            if bird['windTimer'] <= 0:
+                bird['windActive'] = False
 
 # Drawing function
 def drawWindow(window, pipes, birds, floor, score, font, generation, windActive, highJumpActive, windIncoming):
@@ -226,6 +228,10 @@ def drawWindow(window, pipes, birds, floor, score, font, generation, windActive,
     if windIncoming:
         windIncomingText = font.render("Wind Incoming!", 1, (0, 255, 0))
         window.blit(windIncomingText, (WINDOW_WIDTH // 2 - windIncomingText.get_width() // 2, 100))
+    if highJumpActive:
+        highJumpText = font.render("High Jump Active!", 1, (0, 0, 255))
+        window.blit(highJumpText, (WINDOW_WIDTH // 2 - highJumpText.get_width() // 2, 50))      
+  
     pygame.display.update()
   
 # Main function
@@ -257,9 +263,6 @@ def main(genomes, config):
     font = pygame.font.SysFont("comicsans", 50)
 
     run = True
-    windActive = False
-    windTimer = 0
-    highJumpActive = False
     
     while run:
         clock.tick(30)
@@ -282,24 +285,25 @@ def main(genomes, config):
             birdMove(bird)
             genomeList[birdIndex].fitness += 0.1  # Reward for staying alive
 
-            windIncoming = 1 if windTimer > 12 else 0  # Wind incoming in approximately 0.4 seconds
-            inputs = (bird['y'], abs(bird['y'] - pipes[pipeIndex]['height']), abs(bird['y'] - pipes[pipeIndex]['bottom']), pipes[pipeIndex]['height'], windIncoming, int(windActive))
+            windIncoming = 1 if bird['windTimer'] > 12 else 0  # Wind incoming in approximately 0.4 seconds
+            inputs = (bird['y'], abs(bird['y'] - pipes[pipeIndex]['height']), abs(bird['y'] - pipes[pipeIndex]['bottom']), pipes[pipeIndex]['height'], windIncoming, int(bird['windActive']))
             output = networks[birdIndex].activate(inputs)
 
             highJumpOutput = output[1]
             jumpOutput = output[0]
 
             if highJumpOutput > jumpOutput and highJumpOutput > 0.5:
-                birdHighJump(bird, windActive)
-                highJumpActive = True
+                birdHighJump(bird, bird['windActive'])
                 genomeList[birdIndex].fitness += 0.5
 
                 if bird['y'] > pipes[pipeIndex]['top'] and bird['y'] < pipes[pipeIndex]['bottom']:
-                    genomeList[birdIndex].fitness -= 1.0  # Punishment for using high jump inside the pipes
+                    genomeList[birdIndex].fitness -= 0.5  # Punishment for using high jump inside the pipes
+            else:
+                bird['highJumpActive'] = False
 
-            elif jumpOutput > 0.5:
+
+            if jumpOutput > 0.5:
                 birdJump(bird)
-                highJumpActive = False
 
         moveFloor(floor)
 
@@ -320,9 +324,9 @@ def main(genomes, config):
                         genome.fitness += 5
                     addPipe = True
 
-                    if highJumpActive and (bird['y'] < pipes[pipeIndex]['bottom']):
-                        genomeList[birdIndex].fitness += 10  # Higher reward for successful high jump
-                        highJumpActive = False  # Reset highJumpActive after rewarding
+                    # if bird['highJumpActive'] and (bird['y'] < pipes[pipeIndex]['bottom']):
+                    #     genomeList[birdIndex].fitness += 0  # Higher reward for successful high jump
+                    #     bird['highJumpActive'] = False  # Reset highJumpActive after rewarding
 
             movePipe(pipe)
 
@@ -337,9 +341,9 @@ def main(genomes, config):
                 networks.pop(birdIndex)
                 genomeList.pop(birdIndex)
 
-        windActive, windTimer = applyWindEffect(birds, pipes, windActive, windTimer)
+        applyWindEffect(birds)
 
-        drawWindow(window, pipes, birds, floor, score, font, generation, windActive, highJumpActive, windIncoming)
+        drawWindow(window, pipes, birds, floor, score, font, generation, any(bird['windActive'] for bird in birds), any(bird['highJumpActive'] for bird in birds), any(bird['windTimer'] > 12 for bird in birds))
 
 # Function to ask for mode
 def askMode():
