@@ -337,10 +337,18 @@ def main(genomes, config):
                     #     genomeList[birdIndex].fitness += 0  # Higher reward for successful high jump
                     #     bird['highJumpActive'] = False  # Reset highJumpActive after rewarding
 
+                #Punish the birds that fly off into the sky.
+                if bird['y'] < 0 or bird['y'] + bird['image'].get_height() >= floor['y']:
+                    genomeList[birdIndex].fitness -= 5
+                    birds.pop(birdIndex)
+                    networks.pop(birdIndex)
+                    genomeList.pop(birdIndex)
+                    continue
+
             movePipe(pipe)
 
         if addPipe:
-            pipes.append(createPipe(pipes[-1]['x'] + 300))  # Fixed gap between pipes
+            pipes.append(createPipe(pipes[-1]['x'] + 400))  # Fixed gap between pipes
 
         pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
 
@@ -435,7 +443,7 @@ def playGame():
         if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
             run = False
 
-        drawWindow(window, pipes, [bird], floor, score, font, generation, False, False, False)
+        drawWindow(window, pipes, [bird], floor, score, font, generation, False)
 
 def run(configPath):
     """
@@ -457,7 +465,7 @@ def run(configPath):
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
 
-    # Run for up to 50 generations.
+    # Run for up to 300 generations.
     winner = population.run(main, 300 )
 
     # 'winner' now holds the best genome found during the run. You could further analyze it or replay it.
