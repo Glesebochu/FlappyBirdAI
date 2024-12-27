@@ -102,7 +102,7 @@ node_delete_prob        = 0.2
 num_hidden              = 0
 
 # The network sees three input signals (The bird's Y position, The height of the top & bottom pipe)
-num_inputs              = 4
+num_inputs              = 6
 
 # The bird has two outputs(jumpp and high jump)
 num_outputs             = 2
