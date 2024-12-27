@@ -208,7 +208,7 @@ def applyWindEffect(birds):
                 bird['windActive'] = False
 
 # Drawing function
-def drawWindow(window, pipes, birds, floor, score, font, generation, windActive, highJumpActive, windIncoming):
+def drawWindow(window, pipes, birds, floor, score, font, generation, genomeList):
     """
     Draw all game elements on the window.
     """
@@ -222,16 +222,25 @@ def drawWindow(window, pipes, birds, floor, score, font, generation, windActive,
     window.blit(scoreText, (WINDOW_WIDTH - scoreText.get_width() - 10, 10))
     generationText = font.render(f"Gen: {generation}", 1, (255, 255, 255))
     window.blit(generationText, (10, 10))
-    if windActive:
-        windText = font.render("Wind Active!", 1, (255, 0, 0))
-        window.blit(windText, (WINDOW_WIDTH // 2 - windText.get_width() // 2, 50))
-    if windIncoming:
-        windIncomingText = font.render("Wind Incoming!", 1, (0, 255, 0))
-        window.blit(windIncomingText, (WINDOW_WIDTH // 2 - windIncomingText.get_width() // 2, 100))
-    if highJumpActive:
-        highJumpText = font.render("High Jump Active!", 1, (0, 0, 255))
-        window.blit(highJumpText, (WINDOW_WIDTH // 2 - highJumpText.get_width() // 2, 50))      
-  
+
+    # Collect indices of genomes with active states
+    windActiveGenomes = [i for i, bird in enumerate(birds) if bird['windActive']]
+    highJumpActiveGenomes = [i for i, bird in enumerate(birds) if bird['highJumpActive']]
+    windIncomingGenomes = [i for i, bird in enumerate(birds) if bird['windTimer'] > 12]
+
+    if windActiveGenomes:
+        windText = font.render(f"Wind Active for genomes: {', '.join(map(str, windActiveGenomes))}", 1, (255, 0, 0))
+        windTextRect = windText.get_rect(center=(WINDOW_WIDTH // 2, 50))
+        window.blit(windText, windTextRect)
+    if windIncomingGenomes:
+        windIncomingText = font.render(f"Wind Incoming for genomes: {', '.join(map(str, windIncomingGenomes))}", 1, (0, 255, 0))
+        windIncomingTextRect = windIncomingText.get_rect(center=(WINDOW_WIDTH // 2, 100))
+        window.blit(windIncomingText, windIncomingTextRect)
+    if highJumpActiveGenomes:
+        highJumpText = font.render(f"High Jump Active for genomes: {', '.join(map(str, highJumpActiveGenomes))}", 1, (0, 0, 255))
+        highJumpTextRect = highJumpText.get_rect(center=(WINDOW_WIDTH // 2, 150))
+        window.blit(highJumpText, highJumpTextRect)
+
     pygame.display.update()
   
 # Main function
@@ -283,7 +292,7 @@ def main(genomes, config):
 
         for birdIndex, bird in enumerate(birds):
             birdMove(bird)
-            genomeList[birdIndex].fitness += 0.1  # Reward for staying alive
+            genomeList[birdIndex].fitness += 0.6  # Reward for staying alive
 
             windIncoming = 1 if bird['windTimer'] > 12 else 0  # Wind incoming in approximately 0.4 seconds
             inputs = (bird['y'], abs(bird['y'] - pipes[pipeIndex]['height']), abs(bird['y'] - pipes[pipeIndex]['bottom']), pipes[pipeIndex]['height'], windIncoming, int(bird['windActive']))
@@ -294,10 +303,10 @@ def main(genomes, config):
 
             if highJumpOutput > jumpOutput and highJumpOutput > 0.5:
                 birdHighJump(bird, bird['windActive'])
-                genomeList[birdIndex].fitness += 0.5
+                genomeList[birdIndex].fitness += 0.2
 
-                if bird['y'] > pipes[pipeIndex]['top'] and bird['y'] < pipes[pipeIndex]['bottom']:
-                    genomeList[birdIndex].fitness -= 0.5  # Punishment for using high jump inside the pipes
+                # if bird['y'] > pipes[pipeIndex]['top'] and bird['y'] < pipes[pipeIndex]['bottom']:
+                #     genomeList[birdIndex].fitness -= 0.5  # Punishment for using high jump inside the pipes
             else:
                 bird['highJumpActive'] = False
 
@@ -311,7 +320,7 @@ def main(genomes, config):
         for pipe in pipes:
             for birdIndex, bird in enumerate(birds):
                 if pipeCollide(pipe, bird):
-                    genomeList[birdIndex].fitness -= 1
+                    genomeList[birdIndex].fitness -= 5
                     birds.pop(birdIndex)
                     networks.pop(birdIndex)
                     genomeList.pop(birdIndex)
@@ -343,7 +352,7 @@ def main(genomes, config):
 
         applyWindEffect(birds)
 
-        drawWindow(window, pipes, birds, floor, score, font, generation, any(bird['windActive'] for bird in birds), any(bird['highJumpActive'] for bird in birds), any(bird['windTimer'] > 12 for bird in birds))
+        drawWindow(window, pipes, birds, floor, score, font, generation, genomeList)
 
 # Function to ask for mode
 def askMode():
