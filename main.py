@@ -2,6 +2,7 @@ import pygame
 import random
 import os
 import neat
+import pickle
 
 # Constants defining the window size.
 WINDOW_WIDTH = 500
@@ -376,7 +377,8 @@ def askMode():
 
     while run:
         window.fill((0, 0, 0))
-        text = font.render("Press 'T' to train or 'P' to play", 1, (255, 255, 255))
+        text = font.render("Press 'T' to train, 'P' to play yourself or 'B' to play best genome", 1, (255, 255, 255))
+        text = pygame.transform.scale(text, (text.get_width() // 2, text.get_height() // 2))
         window.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - text.get_height() // 2))
         pygame.display.update()
 
@@ -390,6 +392,9 @@ def askMode():
                     run = False
                 elif event.key == pygame.K_p:
                     mode = 'play'
+                    run = False
+                elif event.key == pygame.K_b:
+                    mode = 'play_best'
                     run = False
 
         clock.tick(30)
@@ -468,7 +473,90 @@ def run(configPath):
     # Run for up to 300 generations.
     winner = population.run(main, 300 )
 
-    # 'winner' now holds the best genome found during the run. You could further analyze it or replay it.
+    # 'winner' now holds the best genome found during the run. 
+    # save the winner to a file
+    with open('winner.pkl', 'wb') as output:
+        pickle.dump(winner, output, 1)
+
+    print("Best genome saved to winner.pkl")
+
+def playBestGenome(configPath):
+    """
+    Load the best genome from a file and use it to play the game.
+    """
+    try:
+        # Load the best genome from the file
+        with open("winner.pkl", "rb") as f:
+            best_genome = pickle.load(f)
+    except FileNotFoundError:
+        print("Best genome file not found. Please run the training first.")
+        return
+
+    config = neat.config.Config(
+        neat.DefaultGenome,
+        neat.DefaultReproduction,
+        neat.DefaultSpeciesSet,
+        neat.DefaultStagnation,
+        configPath
+    )
+
+    # Create a neural network from the best genome
+    net = neat.nn.FeedForwardNetwork.create(best_genome, config)
+
+    # Initialize the game
+    pygame.init()
+    window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    bird = createBird(230, 350)
+    floor = createFloor(730)
+    pipes = [createPipe(600)]
+    clock = pygame.time.Clock() 
+    score = 0
+    font = pygame.font.SysFont("comicsans", 50)
+    run = True
+
+    while run:
+        clock.tick(30)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                pygame.quit()
+                quit()
+
+        birdMove(bird)
+        moveFloor(floor)
+
+        addPipe = False
+        for pipe in pipes:
+            movePipe(pipe)
+            if pipeCollide(pipe, bird):
+                run = False
+            if not pipe['passed'] and pipe['x'] < bird['x']:
+                pipe['passed'] = True
+                score += 1
+                addPipe = True
+
+        if addPipe:
+            pipes.append(createPipe(pipes[-1]['x'] + 300))  # Fixed gap between pipes
+
+        pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
+
+        if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
+            run = False
+
+        # Use the neural network to control the bird
+        if len(pipes) > 1 and bird['x'] > pipes[0]['x'] + pipes[0]['PIPE_TOP'].get_width():
+            pipeIndex = 1
+        else:
+            pipeIndex = 0
+
+        windIncoming = 1 if bird['windTimer'] > 12 else 0  # Wind incoming in approximately 0.4 seconds
+        inputs = (bird['y'], abs(bird['y'] - pipes[pipeIndex]['height']), abs(bird['y'] - pipes[pipeIndex]['bottom']), pipes[pipeIndex]['height'], windIncoming, int(bird['windActive']))
+        output = net.activate(inputs)
+        if output[0] > 0.5:
+            birdJump(bird)
+
+        drawWindow(window, pipes, [bird], floor, score, font, generation, False)
+
 
 if __name__ == "__main__":
     localDir = os.path.dirname(__file__)
@@ -479,5 +567,7 @@ if __name__ == "__main__":
         run(configPath)
     elif mode == 'play':
         playGame()
+    elif mode == 'play_best':
+        playBestGenome(configPath)
     else:
         print("Invalid mode selected. Please enter 'train' or 'play'.")
