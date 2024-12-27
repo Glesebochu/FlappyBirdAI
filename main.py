@@ -283,11 +283,10 @@ def main(genomes, config):
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                stop_training = True
-                run = False
-                break
+                pygame.quit()
+                quit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q:  # Press 'Q' to quit and save
+                if event.key == pygame.K_q:  # Press 'Q' to quit after the current generation
                     stop_training = True
                     run = False
                     break
