@@ -8,6 +8,9 @@ import pickle
 WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 800
 
+#constants to keep track of fitness threshold
+FITNESS_THRESHOLD = 10000
+
 # Global variable to keep track of the generations
 generation = -1
 
@@ -378,10 +381,10 @@ def main(genomes, config):
     # Save the best genome to a file
     if stop_training:
         winner = max(genomes, key=lambda g: g[1].fitness)
-        with open('winner.pkl', 'wb') as output:
-            pickle.dump(winner[1], output, 1)
-
-        print("Best genome saved to winner.pkl")
+        if winner[1].fitness >= FITNESS_THRESHOLD:
+            with open('winner.pkl', 'wb') as output:
+                pickle.dump(winner[1], output, 1)
+            print("Best genome saved to winner.pkl")
 
 # Function to ask for mode
 def askMode():
