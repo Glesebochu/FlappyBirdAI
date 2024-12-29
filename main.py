@@ -28,6 +28,32 @@ MAX_ROTATION = 25
 ROTATION_VELOCITY = 20
 ANIMATION_TIME = 5
 
+class Particle:
+    def __init__(self, x, y, color, direction, lifespan=50):
+        self.x = x
+        self.y = y
+        self.color = color
+        self.lifespan = lifespan
+        self.velocity = [random.uniform(-1, 1) + direction[0], random.uniform(-1, 1) + direction[1]]
+                     
+    def update(self):
+        self.x += self.velocity[0]
+        self.y += self.velocity[1]
+        self.lifespan -= 1
+
+    def draw(self, surface):
+        if self.lifespan > 0:
+            pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), 3)
+
+particles = []
+def createWindParticles(bird):
+    for _ in range(5):  # Create 5 particles per frame
+        particles.append(Particle(bird['x'], bird['y'], (0, 255, 255), direction=(0, 1)))
+
+def createHighJumpParticles(bird):
+    for _ in range(5):  # Create 5 particles per frame
+        particles.append(Particle(bird['x'], bird['y'], (255, 255, 0), direction=(0, -1)))
+        
 # Bird functions
 def createBird(x, y):
     """
@@ -244,6 +270,12 @@ def drawWindow(window, pipes, birds, floor, score, font, generation, genomeList)
         highJumpText = pygame.transform.scale(highJumpText, (highJumpText.get_width() // 2, highJumpText.get_height() // 2))
         highJumpTextRect = highJumpText.get_rect(center=(WINDOW_WIDTH // 3, 200))
         window.blit(highJumpText, highJumpTextRect)
+        
+    for particle in particles[:]:
+        particle.update()
+        particle.draw(window)
+        if particle.lifespan <= 0:
+            particles.remove(particle)
 
     pygame.display.update()
   
@@ -285,6 +317,14 @@ def main(genomes, config):
                 run = False
                 pygame.quit()
                 quit()
+                
+        # for i, bird in enumerate(birds):
+        #     if bird['windActive']:
+        #         createWindParticles(bird)
+        #         break
+            # if bird['highJumpActive']:
+            #     createHighJumpParticles(bird)
+        
 
         pipeIndex = 0
         if len(birds) > 0:
@@ -360,7 +400,6 @@ def main(genomes, config):
                 genomeList.pop(birdIndex)
 
         applyWindEffect(birds)
-
         drawWindow(window, pipes, birds, floor, score, font, generation, genomeList)
 
 # Function to ask for mode
@@ -521,6 +560,11 @@ def playBestGenome(configPath):
                 run = False
                 pygame.quit()
                 quit()
+        
+        if bird['windActive']:
+            createWindParticles(bird)
+        if bird['highJumpActive']:
+            createHighJumpParticles(bird)
 
         birdMove(bird)
         moveFloor(floor)
@@ -557,6 +601,14 @@ def playBestGenome(configPath):
 
         drawWindow(window, pipes, [bird], floor, score, font, generation, False)
 
+        # Draw particles
+        for particle in particles[:]:
+            particle.update()
+            particle.draw(window)
+            if particle.lifespan <= 0:
+                particles.remove(particle)
+
+        pygame.display.update()
 
 if __name__ == "__main__":
     localDir = os.path.dirname(__file__)
