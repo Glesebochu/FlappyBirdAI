@@ -8,6 +8,9 @@ import pickle
 WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 800
 
+#constants to keep track of fitness threshold
+FITNESS_THRESHOLD = 10000
+
 # Global variable to keep track of the generations
 generation = -1
 
@@ -28,32 +31,6 @@ MAX_ROTATION = 25
 ROTATION_VELOCITY = 20
 ANIMATION_TIME = 5
 
-class Particle:
-    def __init__(self, x, y, color, direction, lifespan=50):
-        self.x = x
-        self.y = y
-        self.color = color
-        self.lifespan = lifespan
-        self.velocity = [random.uniform(-1, 1) + direction[0], random.uniform(-1, 1) + direction[1]]
-                     
-    def update(self):
-        self.x += self.velocity[0]
-        self.y += self.velocity[1]
-        self.lifespan -= 1
-
-    def draw(self, surface):
-        if self.lifespan > 0:
-            pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), 3)
-
-particles = []
-def createWindParticles(bird):
-    for _ in range(5):  # Create 5 particles per frame
-        particles.append(Particle(bird['x'], bird['y'], (0, 255, 255), direction=(0, 1)))
-
-def createHighJumpParticles(bird):
-    for _ in range(5):  # Create 5 particles per frame
-        particles.append(Particle(bird['x'], bird['y'], (255, 255, 0), direction=(0, -1)))
-        
 # Bird functions
 def createBird(x, y):
     """
@@ -151,7 +128,7 @@ def createPipe(x):
     """
     Create a pipe with a random height.
     """
-    height = random.randint(70, 200) if random.random() < 0.5 else random.randint(380, 550)
+    height = random.randint(80, 200) if random.random() < 0.5 else random.randint(350, 550)
     return {
         'x': x,
         'height': height,
@@ -235,7 +212,7 @@ def applyWindEffect(birds):
                 bird['windActive'] = False
 
 # Drawing function
-def drawWindow(window, pipes, birds, floor, score, font, generation, genomeList):
+def drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=None, highJumpActiveGenomes=None, windIncomingGenomes=None, generation=None):
     """
     Draw all game elements on the window.
     """
@@ -247,13 +224,10 @@ def drawWindow(window, pipes, birds, floor, score, font, generation, genomeList)
         birdDraw(window, bird)
     scoreText = font.render(f"Score: {score}", 1, (255, 255, 255))
     window.blit(scoreText, (WINDOW_WIDTH - scoreText.get_width() - 10, 10))
-    generationText = font.render(f"Gen: {generation}", 1, (255, 255, 255))
-    window.blit(generationText, (10, 10))
 
-    # Collect indices of genomes with active states
-    windActiveGenomes = [i for i, bird in enumerate(birds) if bird['windActive']]
-    highJumpActiveGenomes = [i for i, bird in enumerate(birds) if bird['highJumpActive']]
-    windIncomingGenomes = [i for i, bird in enumerate(birds) if bird['windTimer'] > 12]
+    if generation is not None:
+        generationText = font.render(f"Gen: {generation}", 1, (255, 255, 255))
+        window.blit(generationText, (10, 10))
 
     if windActiveGenomes:
         windText = font.render(f"Wind Active for genomes: {', '.join(map(str, windActiveGenomes))}", 1, (255, 0, 0))
@@ -278,7 +252,7 @@ def drawWindow(window, pipes, birds, floor, score, font, generation, genomeList)
             particles.remove(particle)
 
     pygame.display.update()
-  
+    
 # Main function
 def main(genomes, config):
     """
@@ -308,23 +282,23 @@ def main(genomes, config):
     font = pygame.font.SysFont("comicsans", 50)
 
     run = True
+    stop_training = False
     
     while run:
         clock.tick(30)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                run = False
                 pygame.quit()
                 quit()
-                
-        # for i, bird in enumerate(birds):
-        #     if bird['windActive']:
-        #         createWindParticles(bird)
-        #         break
-            # if bird['highJumpActive']:
-            #     createHighJumpParticles(bird)
-        
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:  # Press 'Q' to quit after the current generation
+                    stop_training = True
+                    run = False
+                    break
+
+        if stop_training:
+            break
 
         pipeIndex = 0
         if len(birds) > 0:
@@ -400,7 +374,22 @@ def main(genomes, config):
                 genomeList.pop(birdIndex)
 
         applyWindEffect(birds)
-        drawWindow(window, pipes, birds, floor, score, font, generation, genomeList)
+
+        # Collect indices of genomes with active states
+        windActiveGenomes = [i for i, bird in enumerate(birds) if bird['windActive']]
+        highJumpActiveGenomes = [i for i, bird in enumerate(birds) if bird['highJumpActive']]
+        windIncomingGenomes = [i for i, bird in enumerate(birds) if bird['windTimer'] > 12]
+
+        # Call drawWindow with the collected indices
+        drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes, generation=generation)
+
+    # Save the best genome to a file
+    if stop_training:
+        winner = max(genomes, key=lambda g: g[1].fitness)
+        if winner[1].fitness >= FITNESS_THRESHOLD:
+            with open('winner.pkl', 'wb') as output:
+                pickle.dump(winner[1], output, 1)
+            print("Best genome saved to winner.pkl")
 
 # Function to ask for mode
 def askMode():
@@ -465,6 +454,8 @@ def playGame():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     birdJump(bird)
+                elif event.key == pygame.K_h:  # Assuming 'H' key is used for high jump
+                    birdHighJump(bird,bird['windActive'])
 
         birdMove(bird)
         moveFloor(floor)
@@ -480,14 +471,20 @@ def playGame():
                 addPipe = True
 
         if addPipe:
-            pipes.append(createPipe(600))
+            pipes.append(createPipe(pipes[-1]['x'] + 400))  # Fixed gap between pipes
 
         pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
 
         if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
             run = False
 
-        drawWindow(window, pipes, [bird], floor, score, font, generation, False)
+        applyWindEffect([bird])
+
+        windActiveGenomes = [0] if bird['windActive'] else []
+        highJumpActiveGenomes = [0] if bird['highJumpActive'] else []
+        windIncomingGenomes = [0] if bird['windTimer'] > 12 else []
+
+        drawWindow(window, pipes, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)          
 
 def run(configPath):
     """
@@ -519,6 +516,7 @@ def run(configPath):
 
     print("Best genome saved to winner.pkl")
 
+#Function to play the game using the best genome
 def playBestGenome(configPath):
     """
     Load the best genome from a file and use it to play the game.
@@ -548,7 +546,7 @@ def playBestGenome(configPath):
     bird = createBird(230, 350)
     floor = createFloor(730)
     pipes = [createPipe(600)]
-    clock = pygame.time.Clock() 
+    clock = pygame.time.Clock()
     score = 0
     font = pygame.font.SysFont("comicsans", 50)
     run = True
@@ -580,12 +578,18 @@ def playBestGenome(configPath):
                 addPipe = True
 
         if addPipe:
-            pipes.append(createPipe(pipes[-1]['x'] + 300))  # Fixed gap between pipes
+            pipes.append(createPipe(pipes[-1]['x'] + 400))  # Fixed gap between pipes
 
         pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
 
         if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
             run = False
+
+        applyWindEffect([bird])
+
+        windActiveGenomes = [0] if bird['windActive'] else []
+        highJumpActiveGenomes = [0] if bird['highJumpActive'] else []
+        windIncomingGenomes = [0] if bird['windTimer'] > 12 else []
 
         # Use the neural network to control the bird
         if len(pipes) > 1 and bird['x'] > pipes[0]['x'] + pipes[0]['PIPE_TOP'].get_width():
@@ -596,19 +600,18 @@ def playBestGenome(configPath):
         windIncoming = 1 if bird['windTimer'] > 12 else 0  # Wind incoming in approximately 0.4 seconds
         inputs = (bird['y'], abs(bird['y'] - pipes[pipeIndex]['height']), abs(bird['y'] - pipes[pipeIndex]['bottom']), pipes[pipeIndex]['height'], windIncoming, int(bird['windActive']))
         output = net.activate(inputs)
-        if output[0] > 0.5:
+        highJumpOutput = output[1]
+        jumpOutput = output[0]
+
+        if highJumpOutput > 0.5:
+            birdHighJump(bird, bird['windActive'])
+        else:
+            bird['highJumpActive']  = False
+
+        if jumpOutput > 0.5:
             birdJump(bird)
 
-        drawWindow(window, pipes, [bird], floor, score, font, generation, False)
-
-        # Draw particles
-        for particle in particles[:]:
-            particle.update()
-            particle.draw(window)
-            if particle.lifespan <= 0:
-                particles.remove(particle)
-
-        pygame.display.update()
+        drawWindow(window, pipes, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)
 
 if __name__ == "__main__":
     localDir = os.path.dirname(__file__)
