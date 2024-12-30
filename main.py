@@ -14,12 +14,22 @@ FITNESS_THRESHOLD = 10000
 # Global variable to keep track of the generations
 generation = -1
 
+# Load wind images from the imgs/wind directory
+WIND_IMAGES = []
+wind_dir = os.path.join("imgs", "wind")
+for filename in os.listdir(wind_dir):
+    if filename.endswith(".png"):  # Assuming all wind assets are PNG files
+        image_path = os.path.join(wind_dir, filename)
+        WIND_IMAGES.append(pygame.image.load(image_path))
+        
 # Load bird images and scale them up.
 BIRD_IMAGES = [
     pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird1.png"))),
     pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird2.png"))),
     pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird3.png")))
 ]
+
+BIRD_OUTLINE_IMAGE = pygame.transform.scale(pygame.image.load(os.path.join("imgs", "birdOutline.png")), BIRD_IMAGES[0].get_size())
 
 # Load and scale other game images: Pipe, Base (floor), and Background.
 PIPE_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "pipe.png")))
@@ -94,28 +104,40 @@ def birdMove(bird):
         if bird['tilt'] > -90:
             bird['tilt'] -= ROTATION_VELOCITY
 
-def birdDraw(window, bird):
+            bird['windTimer'] += 1
+
+            
+def birdDraw(window, bird, isModeTraning=False):
     """
     Draw the bird on the window with the appropriate image and rotation.
     """
-    bird['imageCount'] += 1
-    if bird['imageCount'] < ANIMATION_TIME:
-        bird['image'] = BIRD_IMAGES[0]
-    elif bird['imageCount'] < ANIMATION_TIME * 2:
-        bird['image'] = BIRD_IMAGES[1]
-    elif bird['imageCount'] < ANIMATION_TIME * 3:
-        bird['image'] = BIRD_IMAGES[2]
-    elif bird['imageCount'] < ANIMATION_TIME * 4:
-        bird['image'] = BIRD_IMAGES[1]
-    elif bird['imageCount'] == ANIMATION_TIME * 4 + 1:
-        bird['image'] = BIRD_IMAGES[0]
-        bird['imageCount'] = 0
-    if bird['tilt'] <= -80:
-        bird['image'] = BIRD_IMAGES[1]
-        bird['imageCount'] = ANIMATION_TIME * 2
+    if not isModeTraning:
+        if bird['highJumpActive']:
+            bird['image'] =  BIRD_OUTLINE_IMAGE
+    
+    if not bird['highJumpActive']:
+        # Regular animation logic
+        bird['imageCount'] += 1
+        if bird['imageCount'] < ANIMATION_TIME:
+            bird['image'] = BIRD_IMAGES[0]
+        elif bird['imageCount'] < ANIMATION_TIME * 2:
+            bird['image'] = BIRD_IMAGES[1]
+        elif bird['imageCount'] < ANIMATION_TIME * 3:
+            bird['image'] = BIRD_IMAGES[2]
+        elif bird['imageCount'] < ANIMATION_TIME * 4:
+            bird['image'] = BIRD_IMAGES[1]
+        elif bird['imageCount'] == ANIMATION_TIME * 4 + 1:
+            bird['image'] = BIRD_IMAGES[0]
+            bird['imageCount'] = 0
+    # else: 
+    #     if bird['highJumpActive']:
+    #         bird['image'] =  BIRD_OUTLINE_IMAGE
+
+    # Handle bird tilt
     rotatedImage = pygame.transform.rotate(bird['image'], bird['tilt'])
     newRect = rotatedImage.get_rect(center=bird['image'].get_rect(topleft=(bird['x'], bird['y'])).center)
     window.blit(rotatedImage, newRect.topleft)
+
 
 def birdGetCollisionMask(bird):
     """
@@ -210,9 +232,10 @@ def applyWindEffect(birds):
             bird['windTimer'] -= 1
             if bird['windTimer'] <= 0:
                 bird['windActive'] = False
-
+                
+                
 # Drawing function
-def drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=None, highJumpActiveGenomes=None, windIncomingGenomes=None, generation=None):
+def drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=None, highJumpActiveGenomes=None, windIncomingGenomes=None, generation=None, isModeTraning=False):
     """
     Draw all game elements on the window.
     """
@@ -221,9 +244,15 @@ def drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=None,
         drawPipe(window, pipe)
     drawFloor(window, floor)
     for bird in birds:
-        birdDraw(window, bird)
+        birdDraw(window, bird, isModeTraning)
+        if bird['windActive']: 
+            wind_image_index = (bird['windTimer'] // 6) % len(WIND_IMAGES)  # Change image every 5 ticks
+            wind_image = WIND_IMAGES[wind_image_index]
+            window.blit(pygame.transform.rotate(wind_image, 90), (bird['x'] - 250, bird['y'] - bird['image'].get_height() - 330))
+            
     scoreText = font.render(f"Score: {score}", 1, (255, 255, 255))
     window.blit(scoreText, (WINDOW_WIDTH - scoreText.get_width() - 10, 10))
+    
 
     if generation is not None:
         generationText = font.render(f"Gen: {generation}", 1, (255, 255, 255))
@@ -245,13 +274,9 @@ def drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=None,
         highJumpTextRect = highJumpText.get_rect(center=(WINDOW_WIDTH // 3, 200))
         window.blit(highJumpText, highJumpTextRect)
         
-    for particle in particles[:]:
-        particle.update()
-        particle.draw(window)
-        if particle.lifespan <= 0:
-            particles.remove(particle)
 
     pygame.display.update()
+    
     
 # Main function
 def main(genomes, config):
@@ -373,15 +398,13 @@ def main(genomes, config):
                 networks.pop(birdIndex)
                 genomeList.pop(birdIndex)
 
-        applyWindEffect(birds)
-
         # Collect indices of genomes with active states
         windActiveGenomes = [i for i, bird in enumerate(birds) if bird['windActive']]
         highJumpActiveGenomes = [i for i, bird in enumerate(birds) if bird['highJumpActive']]
         windIncomingGenomes = [i for i, bird in enumerate(birds) if bird['windTimer'] > 12]
 
         # Call drawWindow with the collected indices
-        drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes, generation=generation)
+        drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes, generation=generation, isModeTraning=True)
 
     # Save the best genome to a file
     if stop_training:
@@ -559,10 +582,6 @@ def playBestGenome(configPath):
                 pygame.quit()
                 quit()
         
-        if bird['windActive']:
-            createWindParticles(bird)
-        if bird['highJumpActive']:
-            createHighJumpParticles(bird)
 
         birdMove(bird)
         moveFloor(floor)
