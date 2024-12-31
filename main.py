@@ -3,6 +3,7 @@ import random
 import os
 import neat
 import pickle
+import matplotlib.pyplot as plt
 
 # Constants defining the window size.
 WINDOW_WIDTH = 500
@@ -23,23 +24,23 @@ for filename in os.listdir(wind_dir):
         WIND_IMAGES.append(pygame.image.load(image_path))
         
 # Load bird images and scale them up.
-BIRD_IMAGES = [
-    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird1.png"))),
-    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird2.png"))),
-    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird3.png")))
+BIRD_FLAPS = [
+    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "flap1.png"))),
+    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "flap2.png"))),
+    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "flap3.png")))
 ]
 
-BIRD_OUTLINE_IMAGE = pygame.transform.scale(pygame.image.load(os.path.join("imgs", "birdOutline.png")), BIRD_IMAGES[0].get_size())
+BIRD_OUTLINE_IMAGE = pygame.transform.scale(pygame.image.load(os.path.join("imgs", "birdOutline.png")), BIRD_FLAPS[0].get_size())
 
 # Load and scale other game images: wall, Base (floor), and Background.
 WALL_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "wall.png")))
-BASE_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "base.png")))
-BACKGROUND_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bg.png")))
+FLOOR_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "floor.png")))
+BACKGROUND_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "background.png")))
 
 # Constants for bird movement
 MAX_ROTATION = 25
 ROTATION_VELOCITY = 20
-ANIMATION_TIME = 5
+FRAME_DURATION_ANIMATION = 5
 
 # Bird functions
 def createBird(x, y):
@@ -54,7 +55,7 @@ def createBird(x, y):
         'velocity': 0,
         'height': y,
         'imageCount': 0,
-        'image': BIRD_IMAGES[0],
+        'image': BIRD_FLAPS[0],
         'displacement': 0,  # Initialize displacement
         'windDisplacement': 0,  # Initialize wind displacement
         'windActive': False,  # Initialize wind active
@@ -105,7 +106,6 @@ def birdMove(bird):
             bird['tilt'] -= ROTATION_VELOCITY
 
             bird['windTimer'] += 1
-
             
 def birdDraw(window, bird, isModeTraning=False):
     """
@@ -117,27 +117,13 @@ def birdDraw(window, bird, isModeTraning=False):
     
     if not bird['highJumpActive']:
         # Regular animation logic
-        bird['imageCount'] += 1
-        if bird['imageCount'] < ANIMATION_TIME:
-            bird['image'] = BIRD_IMAGES[0]
-        elif bird['imageCount'] < ANIMATION_TIME * 2:
-            bird['image'] = BIRD_IMAGES[1]
-        elif bird['imageCount'] < ANIMATION_TIME * 3:
-            bird['image'] = BIRD_IMAGES[2]
-        elif bird['imageCount'] < ANIMATION_TIME * 4:
-            bird['image'] = BIRD_IMAGES[1]
-        elif bird['imageCount'] == ANIMATION_TIME * 4 + 1:
-            bird['image'] = BIRD_IMAGES[0]
-            bird['imageCount'] = 0
-    # else: 
-    #     if bird['highJumpActive']:
-    #         bird['image'] =  BIRD_OUTLINE_IMAGE
+        bird['imageCount'] = (bird['imageCount'] + 1) % (FRAME_DURATION_ANIMATION * len(BIRD_FLAPS))
+        bird['image'] = BIRD_FLAPS[bird['imageCount'] // FRAME_DURATION_ANIMATION]
 
     # Handle bird tilt
     rotatedImage = pygame.transform.rotate(bird['image'], bird['tilt'])
     newRect = rotatedImage.get_rect(center=bird['image'].get_rect(topleft=(bird['x'], bird['y'])).center)
     window.blit(rotatedImage, newRect.topleft)
-
 
 def birdGetCollisionMask(bird):
     """
@@ -195,8 +181,8 @@ def createFloor(y):
     return {
         'y': y,
         'x1': 0,
-        'x2': BASE_IMAGE.get_width(),
-        'image': BASE_IMAGE
+        'x2': FLOOR_IMAGE.get_width(),
+        'image': FLOOR_IMAGE
     }
 
 def moveFloor(floor):
@@ -232,8 +218,7 @@ def applyWindEffect(birds):
             bird['windTimer'] -= 1
             if bird['windTimer'] <= 0:
                 bird['windActive'] = False
-                
-                
+                               
 # Drawing function
 def drawWindow(window, walls, birds, floor, score, font, windActiveGenomes=None, highJumpActiveGenomes=None, windIncomingGenomes=None, generation=None, isModeTraning=False):
     """
@@ -276,7 +261,6 @@ def drawWindow(window, walls, birds, floor, score, font, windActiveGenomes=None,
         
 
     pygame.display.update()
-    
     
 # Main function
 def main(genomes, config):
@@ -541,6 +525,9 @@ def run(configPath):
 
     print("Best genome saved to winner.pkl")
 
+    # ==== PLOT THE FITNESS TREND ====
+    plot_statistics(stats)
+
 #Function to play the game using the best genome
 def playBestGenome(configPath):
     """
@@ -633,6 +620,30 @@ def playBestGenome(configPath):
             birdJump(bird)
 
         drawWindow(window, walls, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)
+
+def plot_statistics(stats):
+    # "stats" is a neat.StatisticsReporter object
+
+    # Extract the best fitness per generation from 'most_fit_genomes'
+    generation_best_fitness = [genome.fitness for genome in stats.most_fit_genomes]
+
+    # Extract the average fitness per generation
+    generation_mean_fitness = stats.get_fitness_mean()
+
+    # Let’s create x values which correspond to generation indices
+    generations = range(len(generation_best_fitness))
+
+    # Plot best and average fitness over generations
+    plt.figure(figsize=(8, 6))
+    plt.plot(generations, generation_best_fitness, label='Best Fitness')
+    plt.plot(generations, generation_mean_fitness, label='Average Fitness')
+    
+    plt.title('Fitness over Generations')
+    plt.xlabel('Generation')
+    plt.ylabel('Fitness')
+    plt.legend(loc='best')
+    plt.grid(True)
+    plt.show()
 
 if __name__ == "__main__":
     localDir = os.path.dirname(__file__)
