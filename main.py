@@ -31,7 +31,7 @@ BIRD_IMAGES = [
 
 BIRD_OUTLINE_IMAGE = pygame.transform.scale(pygame.image.load(os.path.join("imgs", "birdOutline.png")), BIRD_IMAGES[0].get_size())
 
-# Load and scale other game images: Pipe, Base (floor), and Background.
+# Load and scale other game images: wall, Base (floor), and Background.
 WALL_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "wall.png")))
 BASE_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "base.png")))
 BACKGROUND_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bg.png")))
@@ -145,7 +145,7 @@ def birdGetCollisionMask(bird):
     """
     return pygame.mask.from_surface(bird['image'])
 
-# Pipe functions
+# wall functions
 def createWall(x):
     """
     Create a wall with a random height.
@@ -155,7 +155,7 @@ def createWall(x):
         'x': x,
         'height': height,
         'top': height - WALL_IMAGE.get_height(),
-        'bottom': height + 200,  # Pipe.GAP is 200
+        'bottom': height + 200,  # wall.GAP is 200
         'WALL_TOP': pygame.transform.flip(WALL_IMAGE, False, True),
         'WALL_BOTTOM': WALL_IMAGE,
         'passed': False
@@ -165,7 +165,7 @@ def moveWall(wall):
     """
     Move the wall to the left.
     """
-    wall['x'] -= 5  # Pipe.VELOCITY replaced with 5
+    wall['x'] -= 5  # wall.VELOCITY replaced with 5
 
 def drawWall(window, wall):
     """
@@ -245,7 +245,7 @@ def drawWindow(window, walls, birds, floor, score, font, windActiveGenomes=None,
     drawFloor(window, floor)
     for bird in birds:
         birdDraw(window, bird, isModeTraning)
-        if bird['windActive']: 
+        if bird['windActive'] and not isModeTraning: 
             wind_image_index = (bird['windTimer'] // 6) % len(WIND_IMAGES)  # Change image every 5 ticks
             wind_image = WIND_IMAGES[wind_image_index]
             window.blit(pygame.transform.rotate(wind_image, 90), (bird['x'] - 250, bird['y'] - bird['image'].get_height() - 330))
@@ -325,10 +325,10 @@ def main(genomes, config):
         if stop_training:
             break
 
-        pipeIndex = 0
+        wall_Index = 0
         if len(birds) > 0:
             if len(walls) > 1 and birds[0]['x'] > walls[0]['x'] + walls[0]['WALL_TOP'].get_width():
-                pipeIndex = 1
+                wall_Index = 1
         else:
             run = False
             break
@@ -338,7 +338,7 @@ def main(genomes, config):
             genomeList[birdIndex].fitness += 0.6  # Reward for staying alive
 
             windIncoming = 1 if bird['windTimer'] > 12 else 0  # Wind incoming in approximately 0.4 seconds
-            inputs = (bird['y'], abs(bird['y'] - walls[pipeIndex]['height']), abs(bird['y'] - walls[pipeIndex]['bottom']), walls[pipeIndex]['height'], windIncoming, int(bird['windActive']))
+            inputs = (bird['y'], abs(bird['y'] - walls[wall_Index]['height']), abs(bird['y'] - walls[wall_Index]['bottom']), walls[wall_Index]['height'], windIncoming, int(bird['windActive']))
             output = networks[birdIndex].activate(inputs)
 
             highJumpOutput = output[1]
@@ -348,8 +348,8 @@ def main(genomes, config):
                 birdHighJump(bird, bird['windActive'])
                 genomeList[birdIndex].fitness += 0.2
 
-                if bird['x'] > walls[pipeIndex]['x'] and bird['x'] < walls[pipeIndex]['x'] + walls[pipeIndex]['WALL_TOP'].get_width():
-                    if bird['y'] > walls[pipeIndex]['top'] and bird['y'] < walls[pipeIndex]['bottom']:
+                if bird['x'] > walls[wall_Index]['x'] and bird['x'] < walls[wall_Index]['x'] + walls[wall_Index]['WALL_TOP'].get_width():
+                    if bird['y'] > walls[wall_Index]['top'] and bird['y'] < walls[wall_Index]['bottom']:
                         genomeList[birdIndex].fitness -= 0  # Punishment for using high jump inside the walls
             else:
                 bird['highJumpActive'] = False
@@ -360,7 +360,7 @@ def main(genomes, config):
 
         moveFloor(floor)
 
-        addPipe = False
+        addWall = False
         for wall in walls:
             for birdIndex, bird in enumerate(birds):
                 if wallCollide(wall, bird):
@@ -375,7 +375,7 @@ def main(genomes, config):
                     score += 1
                     for genome in genomeList:
                         genome.fitness += 5
-                    addPipe = True
+                    addWall = True
 
                 #Punish the birds that fly off into the sky.
                 if bird['y'] < 0 or bird['y'] + bird['image'].get_height() >= floor['y']:
@@ -387,7 +387,7 @@ def main(genomes, config):
 
             moveWall(wall)
 
-        if addPipe:
+        if addWall:
             walls.append(createWall(walls[-1]['x'] + 400))  # Fixed gap between walls
 
         walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
@@ -397,6 +397,8 @@ def main(genomes, config):
                 birds.pop(birdIndex)
                 networks.pop(birdIndex)
                 genomeList.pop(birdIndex)
+
+        applyWindEffect(birds)
 
         # Collect indices of genomes with active states
         windActiveGenomes = [i for i, bird in enumerate(birds) if bird['windActive']]
@@ -483,7 +485,7 @@ def playGame():
         birdMove(bird)
         moveFloor(floor)
 
-        addPipe = False
+        addWall = False
         for wall in walls:
             moveWall(wall)
             if wallCollide(wall, bird):
@@ -491,9 +493,9 @@ def playGame():
             if not wall['passed'] and wall['x'] < bird['x']:
                 wall['passed'] = True
                 score += 1
-                addPipe = True
+                addWall = True
 
-        if addPipe:
+        if addWall:
             walls.append(createWall(walls[-1]['x'] + 400))  # Fixed gap between walls
 
         walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
@@ -586,7 +588,7 @@ def playBestGenome(configPath):
         birdMove(bird)
         moveFloor(floor)
 
-        addPipe = False
+        addWall = False
         for wall in walls:
             moveWall(wall)
             if wallCollide(wall, bird):
@@ -594,9 +596,9 @@ def playBestGenome(configPath):
             if not wall['passed'] and wall['x'] < bird['x']:
                 wall['passed'] = True
                 score += 1
-                addPipe = True
+                addWall = True
 
-        if addPipe:
+        if addWall:
             walls.append(createWall(walls[-1]['x'] + 400))  # Fixed gap between walls
 
         walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
@@ -612,12 +614,12 @@ def playBestGenome(configPath):
 
         # Use the neural network to control the bird
         if len(walls) > 1 and bird['x'] > walls[0]['x'] + walls[0]['WALL_TOP'].get_width():
-            pipeIndex = 1
+            wall_Index = 1
         else:
-            pipeIndex = 0
+            wall_Index = 0
 
         windIncoming = 1 if bird['windTimer'] > 12 else 0  # Wind incoming in approximately 0.4 seconds
-        inputs = (bird['y'], abs(bird['y'] - walls[pipeIndex]['height']), abs(bird['y'] - walls[pipeIndex]['bottom']), walls[pipeIndex]['height'], windIncoming, int(bird['windActive']))
+        inputs = (bird['y'], abs(bird['y'] - walls[wall_Index]['height']), abs(bird['y'] - walls[wall_Index]['bottom']), walls[wall_Index]['height'], windIncoming, int(bird['windActive']))
         output = net.activate(inputs)
         highJumpOutput = output[1]
         jumpOutput = output[0]
