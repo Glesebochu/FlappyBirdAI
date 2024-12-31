@@ -32,7 +32,7 @@ BIRD_IMAGES = [
 BIRD_OUTLINE_IMAGE = pygame.transform.scale(pygame.image.load(os.path.join("imgs", "birdOutline.png")), BIRD_IMAGES[0].get_size())
 
 # Load and scale other game images: Pipe, Base (floor), and Background.
-PIPE_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "pipe.png")))
+WALL_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "wall.png")))
 BASE_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "base.png")))
 BACKGROUND_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bg.png")))
 
@@ -146,43 +146,43 @@ def birdGetCollisionMask(bird):
     return pygame.mask.from_surface(bird['image'])
 
 # Pipe functions
-def createPipe(x):
+def createWall(x):
     """
-    Create a pipe with a random height.
+    Create a wall with a random height.
     """
     height = random.randint(80, 200) if random.random() < 0.5 else random.randint(350, 550)
     return {
         'x': x,
         'height': height,
-        'top': height - PIPE_IMAGE.get_height(),
+        'top': height - WALL_IMAGE.get_height(),
         'bottom': height + 200,  # Pipe.GAP is 200
-        'PIPE_TOP': pygame.transform.flip(PIPE_IMAGE, False, True),
-        'PIPE_BOTTOM': PIPE_IMAGE,
+        'WALL_TOP': pygame.transform.flip(WALL_IMAGE, False, True),
+        'WALL_BOTTOM': WALL_IMAGE,
         'passed': False
     }
 
-def movePipe(pipe):
+def moveWall(wall):
     """
-    Move the pipe to the left.
+    Move the wall to the left.
     """
-    pipe['x'] -= 5  # Pipe.VELOCITY replaced with 5
+    wall['x'] -= 5  # Pipe.VELOCITY replaced with 5
 
-def drawPipe(window, pipe):
+def drawWall(window, wall):
     """
-    Draw the pipe on the window.
+    Draw the wall on the window.
     """
-    window.blit(pipe['PIPE_TOP'], (pipe['x'], pipe['top']))
-    window.blit(pipe['PIPE_BOTTOM'], (pipe['x'], pipe['bottom']))
+    window.blit(wall['WALL_TOP'], (wall['x'], wall['top']))
+    window.blit(wall['WALL_BOTTOM'], (wall['x'], wall['bottom']))
 
-def pipeCollide(pipe, bird):
+def wallCollide(wall, bird):
     """
-    Check if the bird collides with the pipe.
+    Check if the bird collides with the wall.
     """
     birdMask = birdGetCollisionMask(bird)
-    topMask = pygame.mask.from_surface(pipe['PIPE_TOP'])
-    bottomMask = pygame.mask.from_surface(pipe['PIPE_BOTTOM'])
-    topOffset = (pipe['x'] - bird['x'], pipe['top'] - round(bird['y']))
-    bottomOffset = (pipe['x'] - bird['x'], pipe['bottom'] - round(bird['y']))
+    topMask = pygame.mask.from_surface(wall['WALL_TOP'])
+    bottomMask = pygame.mask.from_surface(wall['WALL_BOTTOM'])
+    topOffset = (wall['x'] - bird['x'], wall['top'] - round(bird['y']))
+    bottomOffset = (wall['x'] - bird['x'], wall['bottom'] - round(bird['y']))
     bottomPoint = birdMask.overlap(bottomMask, bottomOffset)
     topPoint = birdMask.overlap(topMask, topOffset)
     return topPoint or bottomPoint
@@ -235,13 +235,13 @@ def applyWindEffect(birds):
                 
                 
 # Drawing function
-def drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=None, highJumpActiveGenomes=None, windIncomingGenomes=None, generation=None, isModeTraning=False):
+def drawWindow(window, walls, birds, floor, score, font, windActiveGenomes=None, highJumpActiveGenomes=None, windIncomingGenomes=None, generation=None, isModeTraning=False):
     """
     Draw all game elements on the window.
     """
     window.blit(BACKGROUND_IMAGE, (0, 0))
-    for pipe in pipes:
-        drawPipe(window, pipe)
+    for wall in walls:
+        drawWall(window, wall)
     drawFloor(window, floor)
     for bird in birds:
         birdDraw(window, bird, isModeTraning)
@@ -301,7 +301,7 @@ def main(genomes, config):
         genomeList.append(genome)
 
     floor = createFloor(730)
-    pipes = [createPipe(400)]
+    walls = [createWall(400)]
     clock = pygame.time.Clock()
     score = 0
     font = pygame.font.SysFont("comicsans", 50)
@@ -327,7 +327,7 @@ def main(genomes, config):
 
         pipeIndex = 0
         if len(birds) > 0:
-            if len(pipes) > 1 and birds[0]['x'] > pipes[0]['x'] + pipes[0]['PIPE_TOP'].get_width():
+            if len(walls) > 1 and birds[0]['x'] > walls[0]['x'] + walls[0]['WALL_TOP'].get_width():
                 pipeIndex = 1
         else:
             run = False
@@ -338,7 +338,7 @@ def main(genomes, config):
             genomeList[birdIndex].fitness += 0.6  # Reward for staying alive
 
             windIncoming = 1 if bird['windTimer'] > 12 else 0  # Wind incoming in approximately 0.4 seconds
-            inputs = (bird['y'], abs(bird['y'] - pipes[pipeIndex]['height']), abs(bird['y'] - pipes[pipeIndex]['bottom']), pipes[pipeIndex]['height'], windIncoming, int(bird['windActive']))
+            inputs = (bird['y'], abs(bird['y'] - walls[pipeIndex]['height']), abs(bird['y'] - walls[pipeIndex]['bottom']), walls[pipeIndex]['height'], windIncoming, int(bird['windActive']))
             output = networks[birdIndex].activate(inputs)
 
             highJumpOutput = output[1]
@@ -348,9 +348,9 @@ def main(genomes, config):
                 birdHighJump(bird, bird['windActive'])
                 genomeList[birdIndex].fitness += 0.2
 
-                if bird['x'] > pipes[pipeIndex]['x'] and bird['x'] < pipes[pipeIndex]['x'] + pipes[pipeIndex]['PIPE_TOP'].get_width():
-                    if bird['y'] > pipes[pipeIndex]['top'] and bird['y'] < pipes[pipeIndex]['bottom']:
-                        genomeList[birdIndex].fitness -= 0  # Punishment for using high jump inside the pipes
+                if bird['x'] > walls[pipeIndex]['x'] and bird['x'] < walls[pipeIndex]['x'] + walls[pipeIndex]['WALL_TOP'].get_width():
+                    if bird['y'] > walls[pipeIndex]['top'] and bird['y'] < walls[pipeIndex]['bottom']:
+                        genomeList[birdIndex].fitness -= 0  # Punishment for using high jump inside the walls
             else:
                 bird['highJumpActive'] = False
 
@@ -361,17 +361,17 @@ def main(genomes, config):
         moveFloor(floor)
 
         addPipe = False
-        for pipe in pipes:
+        for wall in walls:
             for birdIndex, bird in enumerate(birds):
-                if pipeCollide(pipe, bird):
+                if wallCollide(wall, bird):
                     genomeList[birdIndex].fitness -= 5
                     birds.pop(birdIndex)
                     networks.pop(birdIndex)
                     genomeList.pop(birdIndex)
                     continue
 
-                if not pipe['passed'] and pipe['x'] < bird['x']:
-                    pipe['passed'] = True
+                if not wall['passed'] and wall['x'] < bird['x']:
+                    wall['passed'] = True
                     score += 1
                     for genome in genomeList:
                         genome.fitness += 5
@@ -385,12 +385,12 @@ def main(genomes, config):
                     genomeList.pop(birdIndex)
                     continue
 
-            movePipe(pipe)
+            moveWall(wall)
 
         if addPipe:
-            pipes.append(createPipe(pipes[-1]['x'] + 400))  # Fixed gap between pipes
+            walls.append(createWall(walls[-1]['x'] + 400))  # Fixed gap between walls
 
-        pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
+        walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
 
         for birdIndex, bird in enumerate(birds):
             if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
@@ -404,7 +404,7 @@ def main(genomes, config):
         windIncomingGenomes = [i for i, bird in enumerate(birds) if bird['windTimer'] > 12]
 
         # Call drawWindow with the collected indices
-        drawWindow(window, pipes, birds, floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes, generation=generation, isModeTraning=True)
+        drawWindow(window, walls, birds, floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes, generation=generation, isModeTraning=True)
 
     # Save the best genome to a file
     if stop_training:
@@ -462,7 +462,7 @@ def playGame():
     clock = pygame.time.Clock()
     bird = createBird(230, 350)
     floor = createFloor(730)
-    pipes = [createPipe(600)]
+    walls = [createWall(600)]
     score = 0
     font = pygame.font.SysFont("comicsans", 50)
     run = True
@@ -484,19 +484,19 @@ def playGame():
         moveFloor(floor)
 
         addPipe = False
-        for pipe in pipes:
-            movePipe(pipe)
-            if pipeCollide(pipe, bird):
+        for wall in walls:
+            moveWall(wall)
+            if wallCollide(wall, bird):
                 run = False
-            if not pipe['passed'] and pipe['x'] < bird['x']:
-                pipe['passed'] = True
+            if not wall['passed'] and wall['x'] < bird['x']:
+                wall['passed'] = True
                 score += 1
                 addPipe = True
 
         if addPipe:
-            pipes.append(createPipe(pipes[-1]['x'] + 400))  # Fixed gap between pipes
+            walls.append(createWall(walls[-1]['x'] + 400))  # Fixed gap between walls
 
-        pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
+        walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
 
         if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
             run = False
@@ -507,7 +507,7 @@ def playGame():
         highJumpActiveGenomes = [0] if bird['highJumpActive'] else []
         windIncomingGenomes = [0] if bird['windTimer'] > 12 else []
 
-        drawWindow(window, pipes, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)          
+        drawWindow(window, walls, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)          
 
 def run(configPath):
     """
@@ -568,7 +568,7 @@ def playBestGenome(configPath):
     window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     bird = createBird(230, 350)
     floor = createFloor(730)
-    pipes = [createPipe(600)]
+    walls = [createWall(600)]
     clock = pygame.time.Clock()
     score = 0
     font = pygame.font.SysFont("comicsans", 50)
@@ -587,19 +587,19 @@ def playBestGenome(configPath):
         moveFloor(floor)
 
         addPipe = False
-        for pipe in pipes:
-            movePipe(pipe)
-            if pipeCollide(pipe, bird):
+        for wall in walls:
+            moveWall(wall)
+            if wallCollide(wall, bird):
                 run = False
-            if not pipe['passed'] and pipe['x'] < bird['x']:
-                pipe['passed'] = True
+            if not wall['passed'] and wall['x'] < bird['x']:
+                wall['passed'] = True
                 score += 1
                 addPipe = True
 
         if addPipe:
-            pipes.append(createPipe(pipes[-1]['x'] + 400))  # Fixed gap between pipes
+            walls.append(createWall(walls[-1]['x'] + 400))  # Fixed gap between walls
 
-        pipes = [pipe for pipe in pipes if pipe['x'] + pipe['PIPE_TOP'].get_width() > 0]
+        walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
 
         if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
             run = False
@@ -611,13 +611,13 @@ def playBestGenome(configPath):
         windIncomingGenomes = [0] if bird['windTimer'] > 12 else []
 
         # Use the neural network to control the bird
-        if len(pipes) > 1 and bird['x'] > pipes[0]['x'] + pipes[0]['PIPE_TOP'].get_width():
+        if len(walls) > 1 and bird['x'] > walls[0]['x'] + walls[0]['WALL_TOP'].get_width():
             pipeIndex = 1
         else:
             pipeIndex = 0
 
         windIncoming = 1 if bird['windTimer'] > 12 else 0  # Wind incoming in approximately 0.4 seconds
-        inputs = (bird['y'], abs(bird['y'] - pipes[pipeIndex]['height']), abs(bird['y'] - pipes[pipeIndex]['bottom']), pipes[pipeIndex]['height'], windIncoming, int(bird['windActive']))
+        inputs = (bird['y'], abs(bird['y'] - walls[pipeIndex]['height']), abs(bird['y'] - walls[pipeIndex]['bottom']), walls[pipeIndex]['height'], windIncoming, int(bird['windActive']))
         output = net.activate(inputs)
         highJumpOutput = output[1]
         jumpOutput = output[0]
@@ -630,7 +630,7 @@ def playBestGenome(configPath):
         if jumpOutput > 0.5:
             birdJump(bird)
 
-        drawWindow(window, pipes, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)
+        drawWindow(window, walls, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)
 
 if __name__ == "__main__":
     localDir = os.path.dirname(__file__)
