@@ -15,9 +15,9 @@ FITNESS_THRESHOLD = 10000
 # Global variable to keep track of the generations
 generation = -1
 
-# Load wind images from the imgs/wind directory
+# Load wind images from the images/wind directory
 WIND_IMAGES = []
-wind_dir = os.path.join("imgs", "wind")
+wind_dir = os.path.join("images", "wind")
 for filename in os.listdir(wind_dir):
     if filename.endswith(".png"):  # Assuming all wind assets are PNG files
         image_path = os.path.join(wind_dir, filename)
@@ -25,17 +25,17 @@ for filename in os.listdir(wind_dir):
         
 # Load bird images and scale them up.
 BIRD_FLAPS = [
-    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "flap1.png"))),
-    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "flap2.png"))),
-    pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "flap3.png")))
+    pygame.transform.scale2x(pygame.image.load(os.path.join("images", "flap1.png"))),
+    pygame.transform.scale2x(pygame.image.load(os.path.join("images", "flap2.png"))),
+    pygame.transform.scale2x(pygame.image.load(os.path.join("images", "flap3.png")))
 ]
 
-BIRD_OUTLINE_IMAGE = pygame.transform.scale(pygame.image.load(os.path.join("imgs", "birdOutline.png")), BIRD_FLAPS[0].get_size())
+BIRD_OUTLINE_IMAGE = pygame.transform.scale(pygame.image.load(os.path.join("images", "birdOutline.png")), BIRD_FLAPS[0].get_size())
 
-# Load and scale other game images: wall, Base (floor), and Background.
-WALL_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "wall.png")))
-FLOOR_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "floor.png")))
-BACKGROUND_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "background.png")))
+# Load and scale other game images: wall, Base (Ground), and Background.
+WALL_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("images", "wall.png")))
+Ground_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("images", "Ground.png")))
+BACKGROUND_IMAGE = pygame.transform.scale2x(pygame.image.load(os.path.join("images", "background.png")))
 
 # Constants for bird movement
 MAX_ROTATION = 25
@@ -173,35 +173,35 @@ def wallCollide(wall, bird):
     topPoint = birdMask.overlap(topMask, topOffset)
     return topPoint or bottomPoint
 
-# Floor functions
-def createFloor(y):
+# Ground functions
+def createGround(y):
     """
-    Create the floor with initial parameters.
+    Create the Ground with initial parameters.
     """
     return {
         'y': y,
         'x1': 0,
-        'x2': FLOOR_IMAGE.get_width(),
-        'image': FLOOR_IMAGE
+        'x2': Ground_IMAGE.get_width(),
+        'image': Ground_IMAGE
     }
 
-def moveFloor(floor):
+def moveGround(Ground):
     """
-    Move the floor to the left to create a scrolling effect.
+    Move the Ground to the left to create a scrolling effect.
     """
-    floor['x1'] -= 5  # Floor.VELOCITY replaced with 5
-    floor['x2'] -= 5
-    if floor['x1'] + floor['image'].get_width() < 0:
-        floor['x1'] = floor['x2'] + floor['image'].get_width()
-    if floor['x2'] + floor['image'].get_width() < 0:
-        floor['x2'] = floor['x1'] + floor['image'].get_width()
+    Ground['x1'] -= 5  # Ground.VELOCITY replaced with 5
+    Ground['x2'] -= 5
+    if Ground['x1'] + Ground['image'].get_width() < 0:
+        Ground['x1'] = Ground['x2'] + Ground['image'].get_width()
+    if Ground['x2'] + Ground['image'].get_width() < 0:
+        Ground['x2'] = Ground['x1'] + Ground['image'].get_width()
 
-def drawFloor(window, floor):
+def drawGround(window, Ground):
     """
-    Draw the floor on the window.
+    Draw the Ground on the window.
     """
-    window.blit(floor['image'], (floor['x1'], floor['y']))
-    window.blit(floor['image'], (floor['x2'], floor['y']))
+    window.blit(Ground['image'], (Ground['x1'], Ground['y']))
+    window.blit(Ground['image'], (Ground['x2'], Ground['y']))
 
 # Wind effect function
 def applyWindEffect(birds):
@@ -220,14 +220,14 @@ def applyWindEffect(birds):
                 bird['windActive'] = False
                                
 # Drawing function
-def drawWindow(window, walls, birds, floor, score, font, windActiveGenomes=None, highJumpActiveGenomes=None, windIncomingGenomes=None, generation=None, isModeTraning=False):
+def drawWindow(window, walls, birds, Ground, score, font, windActiveGenomes=None, highJumpActiveGenomes=None, windIncomingGenomes=None, generation=None, isModeTraning=False):
     """
     Draw all game elements on the window.
     """
     window.blit(BACKGROUND_IMAGE, (0, 0))
     for wall in walls:
         drawWall(window, wall)
-    drawFloor(window, floor)
+    drawGround(window, Ground)
     for bird in birds:
         birdDraw(window, bird, isModeTraning)
         if bird['windActive'] and not isModeTraning: 
@@ -284,7 +284,7 @@ def main(genomes, config):
         genome.fitness = 0
         genomeList.append(genome)
 
-    floor = createFloor(730)
+    Ground = createGround(730)
     walls = [createWall(400)]
     clock = pygame.time.Clock()
     score = 0
@@ -342,7 +342,7 @@ def main(genomes, config):
             if jumpOutput > 0.5:
                 birdJump(bird)
 
-        moveFloor(floor)
+        moveGround(Ground)
 
         addWall = False
         for wall in walls:
@@ -362,7 +362,7 @@ def main(genomes, config):
                     addWall = True
 
                 #Punish the birds that fly off into the sky.
-                if bird['y'] < 0 or bird['y'] + bird['image'].get_height() >= floor['y']:
+                if bird['y'] < 0 or bird['y'] + bird['image'].get_height() >= Ground['y']:
                     genomeList[birdIndex].fitness -= 5
                     birds.pop(birdIndex)
                     networks.pop(birdIndex)
@@ -377,7 +377,7 @@ def main(genomes, config):
         walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
 
         for birdIndex, bird in enumerate(birds):
-            if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
+            if bird['y'] + bird['image'].get_height() >= Ground['y'] or bird['y'] < 0:
                 birds.pop(birdIndex)
                 networks.pop(birdIndex)
                 genomeList.pop(birdIndex)
@@ -390,7 +390,7 @@ def main(genomes, config):
         windIncomingGenomes = [i for i, bird in enumerate(birds) if bird['windTimer'] > 12]
 
         # Call drawWindow with the collected indices
-        drawWindow(window, walls, birds, floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes, generation=generation, isModeTraning=True)
+        drawWindow(window, walls, birds, Ground, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes, generation=generation, isModeTraning=True)
 
     # Save the best genome to a file
     if stop_training:
@@ -447,7 +447,7 @@ def playGame():
     window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     clock = pygame.time.Clock()
     bird = createBird(230, 350)
-    floor = createFloor(730)
+    Ground = createGround(730)
     walls = [createWall(600)]
     score = 0
     font = pygame.font.SysFont("comicsans", 50)
@@ -467,7 +467,7 @@ def playGame():
                     birdHighJump(bird,bird['windActive'])
 
         birdMove(bird)
-        moveFloor(floor)
+        moveGround(Ground)
 
         addWall = False
         for wall in walls:
@@ -484,7 +484,7 @@ def playGame():
 
         walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
 
-        if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
+        if bird['y'] + bird['image'].get_height() >= Ground['y'] or bird['y'] < 0:
             run = False
 
         applyWindEffect([bird])
@@ -493,7 +493,7 @@ def playGame():
         highJumpActiveGenomes = [0] if bird['highJumpActive'] else []
         windIncomingGenomes = [0] if bird['windTimer'] > 12 else []
 
-        drawWindow(window, walls, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)          
+        drawWindow(window, walls, [bird], Ground, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)          
 
 def run(configPath):
     """
@@ -556,7 +556,7 @@ def playBestGenome(configPath):
     pygame.init()
     window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     bird = createBird(230, 350)
-    floor = createFloor(730)
+    Ground = createGround(730)
     walls = [createWall(600)]
     clock = pygame.time.Clock()
     score = 0
@@ -573,7 +573,7 @@ def playBestGenome(configPath):
         
 
         birdMove(bird)
-        moveFloor(floor)
+        moveGround(Ground)
 
         addWall = False
         for wall in walls:
@@ -590,7 +590,7 @@ def playBestGenome(configPath):
 
         walls = [wall for wall in walls if wall['x'] + wall['WALL_TOP'].get_width() > 0]
 
-        if bird['y'] + bird['image'].get_height() >= floor['y'] or bird['y'] < 0:
+        if bird['y'] + bird['image'].get_height() >= Ground['y'] or bird['y'] < 0:
             run = False
 
         applyWindEffect([bird])
@@ -619,7 +619,7 @@ def playBestGenome(configPath):
         if jumpOutput > 0.5:
             birdJump(bird)
 
-        drawWindow(window, walls, [bird], floor, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)
+        drawWindow(window, walls, [bird], Ground, score, font, windActiveGenomes=windActiveGenomes, highJumpActiveGenomes=highJumpActiveGenomes, windIncomingGenomes=windIncomingGenomes)
 
 def plot_statistics(stats):
     # "stats" is a neat.StatisticsReporter object
