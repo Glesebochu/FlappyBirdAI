@@ -487,7 +487,7 @@ def playGame():
         if bird['y'] + bird['image'].get_height() >= Ground['y'] or bird['y'] < 0:
             run = False
 
-        applyWindEffect([bird])
+        # applyWindEffect([bird])
 
         windActiveGenomes = [0] if bird['windActive'] else []
         highJumpActiveGenomes = [0] if bird['highJumpActive'] else []
