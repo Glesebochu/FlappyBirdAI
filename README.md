@@ -22,7 +22,7 @@ FlappyBirdAI/
 
 1. **Clone the Repository** 🖥️:
 ```bash
-$ git clone https://github.com/yourusername/FlappyBirdAI.git
+$ git clone https://github.com/Glesebochu/FlappyBirdAI.git
 $ cd FlappyBirdAI
 ```
 
